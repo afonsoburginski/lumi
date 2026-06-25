@@ -7,6 +7,7 @@ import { authRoutes } from '@/routes/auth';
 import { communityRoutes } from '@/routes/community';
 import { healthRoutes } from '@/routes/health';
 import { storyRoutes } from '@/routes/stories';
+import { voiceRoutes } from '@/routes/voice';
 
 const app = new Hono();
 
@@ -23,6 +24,7 @@ app.notFound((c) => c.json({ error: 'not_found', message: 'Rota não encontrada'
 app.route('/health', healthRoutes);
 app.route('/auth', authRoutes);
 app.route('/stories', storyRoutes);
+app.route('/voice', voiceRoutes);
 app.route('/', communityRoutes); // /stories/:id/(like|comments|rate), /collections
 
 export default { port: env.port, fetch: app.fetch };

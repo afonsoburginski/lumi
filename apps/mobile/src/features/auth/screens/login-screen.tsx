@@ -16,11 +16,17 @@ export default function LoginScreen() {
   const login = useAuth((s) => s.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const submit = () => {
-    if (!email.includes('@')) return;
-    login(email);
-    router.back();
+  const submit = async () => {
+    if (!email.includes('@') || password.length < 6) return;
+    setLoading(true);
+    setError(null);
+    const res = await login(email, password);
+    setLoading(false);
+    if (res.ok) router.back();
+    else setError(res.reason);
   };
 
   return (
@@ -43,7 +49,21 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         containerStyle={{ marginBottom: spacing.lg }}
       />
-      <Button onPress={submit} disabled={!email.includes('@')}>
+      {error ? (
+        <Text
+          variant="caption"
+          lightColor="#FF6B6B"
+          darkColor="#FF6B6B"
+          style={{ marginBottom: spacing.sm }}
+        >
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        onPress={submit}
+        loading={loading}
+        disabled={!email.includes('@') || password.length < 6}
+      >
         Entrar
       </Button>
       <Link href="/(auth)/signup" style={{ marginTop: spacing.lg }}>

@@ -17,15 +17,27 @@ export default function SignupScreen() {
   const signup = useAuth((s) => s.signup);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [age, setAge] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const ageNum = parseInt(age, 10);
-  const valid = name.trim().length > 1 && email.includes('@') && ageNum >= 1 && ageNum <= 12;
+  const valid =
+    name.trim().length > 1 &&
+    email.includes('@') &&
+    password.length >= 6 &&
+    ageNum >= 1 &&
+    ageNum <= 12;
 
-  const submit = () => {
+  const submit = async () => {
     if (!valid) return;
-    signup(name.trim(), email, ageNum);
-    router.back();
+    setLoading(true);
+    setError(null);
+    const res = await signup(name.trim(), email, password, ageNum);
+    setLoading(false);
+    if (res.ok) router.back();
+    else setError(res.reason);
   };
 
   return (
@@ -48,6 +60,13 @@ export default function SignupScreen() {
         containerStyle={styles.field}
       />
       <Input
+        placeholder="Senha (mín. 6 caracteres)"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+        containerStyle={styles.field}
+      />
+      <Input
         placeholder="Idade da criança (1 a 12)"
         keyboardType="number-pad"
         value={age}
@@ -62,7 +81,22 @@ export default function SignupScreen() {
           </Text>
         </RNView>
       ) : null}
-      <Button onPress={submit} disabled={!valid} style={{ marginTop: spacing.md }}>
+      {error ? (
+        <Text
+          variant="caption"
+          lightColor="#FF6B6B"
+          darkColor="#FF6B6B"
+          style={{ marginTop: spacing.sm }}
+        >
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        onPress={submit}
+        loading={loading}
+        disabled={!valid}
+        style={{ marginTop: spacing.md }}
+      >
         Criar conta
       </Button>
     </View>

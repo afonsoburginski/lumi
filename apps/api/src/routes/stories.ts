@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { ageBandSchema, listStoriesQuerySchema, storyToneSchema } from '@lumi/shared';
+import { ageBandSchema, createStoryRequestSchema, listStoriesQuerySchema, storyToneSchema } from '@lumi/shared';
 
 import { prisma } from '@/db';
 import { requireAuth, type AuthEnv } from '@/middleware/auth';
+import { aiProvider } from '@/ai';
+import { moderateText } from '@/safety/moderation';
 
 export const storyRoutes = new Hono<AuthEnv>();
 
@@ -55,6 +57,38 @@ const publishStorySchema = z.object({
       }),
     )
     .min(1),
+});
+
+// Geração de história via IA (Claude), com safety na ENTRADA e na SAÍDA.
+// Retorna o rascunho (não persiste); o cliente faz preview e publica via POST /stories.
+storyRoutes.post('/generate', requireAuth, async (c) => {
+  const parsed = createStoryRequestSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) {
+    return c.json({ error: 'validation', message: 'Pedido de geração inválido' }, 400);
+  }
+  // 1) Safety — entrada
+  const inMod = moderateText(parsed.data.prompt);
+  if (inMod.status === 'rejected') {
+    return c.json({ error: 'blocked', message: inMod.reason, categories: inMod.categories }, 422);
+  }
+  // 2) Geração
+  const story = await aiProvider.generateStory({
+    prompt: parsed.data.prompt,
+    ageBand: parsed.data.ageBand,
+    tone: parsed.data.tone,
+  });
+  // 3) Safety — saída (cada página)
+  const blocked = story.pages.map((p) => moderateText(p.text)).find((r) => r.status === 'rejected');
+  if (blocked) {
+    return c.json({ error: 'blocked', message: blocked.reason, categories: blocked.categories }, 422);
+  }
+  return c.json({
+    title: story.title,
+    ageBand: parsed.data.ageBand,
+    tone: parsed.data.tone,
+    pages: story.pages.map((p) => ({ text: p.text })),
+    provider: aiProvider.name,
+  });
 });
 
 storyRoutes.get('/', async (c) => {
