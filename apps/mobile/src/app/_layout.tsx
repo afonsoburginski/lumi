@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider } from '@/theme/theme-provider';
-import { OfflineBanner } from '@/components/layout/OfflineBanner';
+import { OfflineBanner } from '@/components/shared/offline-banner';
 
 export default function RootLayout() {
   return (

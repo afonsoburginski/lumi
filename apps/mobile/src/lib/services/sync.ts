@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 import { zustandStorage } from '@/lib/storage';
 import { uid } from '@/lib/id';
 import { isOnline } from '@/lib/net/connectivity';
-import type { OutboxItem, OutboxType } from '@/lib/story/types';
+import type { OutboxItem, OutboxType } from '@/types/domain';
 
 /**
  * Outbox de sincronização (offline-first). Mutações que precisam de rede são
