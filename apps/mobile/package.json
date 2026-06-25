@@ -5,6 +5,7 @@
   "dependencies": {
     "@lumi/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@tanstack/react-query": "^5.101.1",
     "expo": "~56.0.12",
     "expo-audio": "~56.0.12",
     "expo-constants": "~56.0.18",
