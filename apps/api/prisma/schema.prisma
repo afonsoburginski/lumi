@@ -1,0 +1,123 @@
+// Schema do Lumi (PostgreSQL). Campos de união do domínio (ageBand, tone,
+// moderation, visibility, status) são String validados por zod (@lumi/shared/contracts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  childAge      Int
+  ageBand       String
+  createdAt     DateTime       @default(now())
+
+  stories       Story[]
+  comments      Comment[]
+  ratings       Rating[]
+  collections   Collection[]
+  voiceProfiles VoiceProfile[]
+  refreshTokens RefreshToken[]
+}
+
+model Story {
+  id         String       @id @default(cuid())
+  title      String
+  author     User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   String
+  ageBand    String
+  tone       String?
+  coverColors Json?       // [string, string]
+  coverUri   String?
+  moderation String       @default("pending")
+  isPublic   Boolean      @default(false)
+  likes      Int          @default(0)
+  createdAt  DateTime     @default(now())
+
+  pages       Page[]
+  comments    Comment[]
+  ratings     Rating[]
+  collections Collection[] @relation("CollectionStories")
+
+  @@index([isPublic, moderation])
+  @@index([ageBand])
+}
+
+model Page {
+  id          String  @id @default(cuid())
+  story       Story   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyId     String
+  index       Int
+  imageUri    String
+  text        String
+  audioUri    String?
+  wordTimings Json?
+
+  @@unique([storyId, index])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  story      Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyId    String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   String
+  text       String
+  moderation String   @default("approved")
+  createdAt  DateTime @default(now())
+
+  @@index([storyId])
+}
+
+model Rating {
+  id      String @id @default(cuid())
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyId String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId  String
+  stars   Int
+
+  @@unique([storyId, userId])
+}
+
+model Collection {
+  id         String   @id @default(cuid())
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId    String
+  title      String
+  visibility String   @default("private")
+  createdAt  DateTime @default(now())
+
+  stories    Story[]  @relation("CollectionStories")
+}
+
+model VoiceProfile {
+  id              String   @id @default(cuid())
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId         String
+  type            String   // 'preset' | 'cloned'
+  label           String
+  providerVoiceId String
+  status          String   @default("processing")
+  consent         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

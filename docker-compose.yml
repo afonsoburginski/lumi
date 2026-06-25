@@ -1,0 +1,18 @@
+# PostgreSQL local para a API do Lumi.
+# Subir: docker compose up -d   |   Derrubar: docker compose down
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lumi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lumi
+      POSTGRES_PASSWORD: lumi
+      POSTGRES_DB: lumi
+    ports:
+      - '5432:5432'
+    volumes:
+      - lumi_pgdata:/var/lib/postgresql/data
+
+volumes:
+  lumi_pgdata:

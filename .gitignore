@@ -47,3 +47,11 @@ bun.lockb
 node_modules/
 apps/*/node_modules/
 packages/*/node_modules/
+
+# env
+.env
+apps/*/.env
+
+# prisma
+node_modules/.prisma/
+apps/*/generated/
