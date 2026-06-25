@@ -8,6 +8,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 
 import { ThemeProvider } from '@/theme/theme-provider';
 import { OfflineBanner } from '@/components/shared/offline-banner';
+import { SyncManager } from '@/components/shared/sync-manager';
 import { queryClient } from '@/lib/query-client';
 
 export default function RootLayout() {
@@ -30,6 +31,7 @@ export default function RootLayout() {
               <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
               <Stack.Screen name="voice-clone" options={{ presentation: 'modal' }} />
             </Stack>
+            <SyncManager />
             <OfflineBanner />
           </ThemeProvider>
         </SafeAreaProvider>

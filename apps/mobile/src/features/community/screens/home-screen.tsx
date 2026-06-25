@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/text';
 import { StoryCard } from '@/components/shared/story-card';
 import { useAuth } from '@/features/auth/store/auth-store';
 import { useCommunity } from '@/features/community/store/community-store';
+import { useCommunitySync } from '@/features/community/hooks/use-community-sync';
 import { useQuota } from '@/features/auth/store/quota-store';
 import { spacing } from '@/theme/tokens';
 
@@ -13,6 +14,9 @@ export default function HomeScreen() {
   const ageBand = useAuth((s) => s.ageBand);
   const recommended = useCommunity((s) => s.recommended);
   const remaining = useQuota((s) => s.remaining);
+
+  // Hidrata do servidor quando online + backend; offline usa o cache local.
+  useCommunitySync({ ageBand });
 
   const list = recommended(ageBand);
   const greeting = user ? `Olá, ${user.name}! 👋` : '⭐ Olá! Vamos ler?';

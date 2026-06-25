@@ -21,6 +21,8 @@ interface CommunityState {
   ratings: Rating[];
 
   addStory: (s: Story) => void;
+  /** Hidrata o feed com dados do servidor (upsert por id), preservando locais. */
+  mergeRemote: (remote: Story[]) => void;
   getById: (id: string) => Story | undefined;
   approvedStories: () => Story[];
   recommended: (ageBand: AgeBand) => Story[];
@@ -52,6 +54,12 @@ export const useCommunity = create<CommunityState>()(
             ? { stories: st.stories.map((x) => (x.id === s.id ? s : x)) }
             : { stories: [s, ...st.stories] },
         ),
+      mergeRemote: (remote) =>
+        set((st) => {
+          const byId = new Map(st.stories.map((s) => [s.id, s]));
+          for (const r of remote) byId.set(r.id, { ...byId.get(r.id), ...r, downloaded: true });
+          return { stories: Array.from(byId.values()) };
+        }),
       getById: (id) => get().stories.find((s) => s.id === id),
       approvedStories: () => get().stories.filter((s) => s.moderation === 'approved' && s.isPublic),
       recommended: (ageBand) =>

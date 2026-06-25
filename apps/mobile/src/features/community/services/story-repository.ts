@@ -38,3 +38,46 @@ export function useRemoteStories(params: ListStoriesParams = {}) {
     enabled: !config.useMocks,
   });
 }
+
+/* --------- Mutações (chamadas pelo outbox quando online; ver sync-handlers) --------- */
+
+export async function likeStoryRemote(storyId: string, liked: boolean): Promise<void> {
+  await apiFetch(`/stories/${storyId}/like`, {
+    method: 'POST',
+    body: JSON.stringify({ liked }),
+  });
+}
+
+export async function commentStoryRemote(storyId: string, text: string): Promise<void> {
+  await apiFetch(`/stories/${storyId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function rateStoryRemote(storyId: string, stars: number): Promise<void> {
+  await apiFetch(`/stories/${storyId}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ stars }),
+  });
+}
+
+export async function publishStoryRemote(story: Story): Promise<void> {
+  await apiFetch('/stories', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: story.title,
+      ageBand: story.ageBand,
+      tone: story.tone,
+      coverColors: story.coverColors,
+      coverUri: story.coverUri,
+      isPublic: true,
+      pages: story.pages.map((p) => ({
+        imageUri: p.imageUri,
+        text: p.text,
+        audioUri: p.audioUri,
+        wordTimings: p.wordTimings,
+      })),
+    }),
+  });
+}
