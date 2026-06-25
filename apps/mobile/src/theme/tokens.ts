@@ -35,4 +35,5 @@ export const gradients = {
   readability: ['transparent', 'rgba(30,27,46,0.15)', 'rgba(30,27,46,0.92)'] as const,
 } as const;
 
-export type AgeBand = '3-5' | '6-8' | '9-12';
+// AgeBand é tipo de domínio — vem de @lumi/shared (re-export por conveniência de import).
+export type { AgeBand } from '@lumi/shared/types';
