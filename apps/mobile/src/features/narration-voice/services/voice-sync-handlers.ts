@@ -10,8 +10,12 @@ import { useVoice } from '@/features/narration-voice/store/voice-store';
  */
 if (!config.useMocks) {
   registerSyncHandler('clone_voice', async (p) => {
-    const { id, label } = p as { id: string; label: string };
-    const res = await cloneVoiceRemote(label, []);
+    const { id, label, samplesBase64 } = p as {
+      id: string;
+      label: string;
+      samplesBase64?: string[];
+    };
+    const res = await cloneVoiceRemote(label, samplesBase64 ?? []);
     useVoice.getState().markCloned(id, res.voiceId);
   });
 }

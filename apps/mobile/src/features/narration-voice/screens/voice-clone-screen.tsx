@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { StyleSheet, View as RNView } from 'react-native';
 import { useRouter } from 'expo-router';
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Mic, Square } from 'lucide-react-native';
 
 import { View } from '@/components/ui/view';
@@ -24,26 +31,54 @@ export default function VoiceCloneModal() {
   const user = useAuth((s) => s.user);
   const addClonedVoice = useVoice((s) => s.addClonedVoice);
 
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
   const [step, setStep] = useState<Step>('consent');
   const [consent, setConsent] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [recorded, setRecorded] = useState(false);
+  const [sample, setSample] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // NOTE: gravação real via expo-audio entra aqui (mock para funcionar offline).
-  const toggleRecord = () => {
-    if (recording) {
-      setRecording(false);
-      setRecorded(true);
-    } else {
-      setRecording(true);
-      setRecorded(false);
+  const startRecording = async () => {
+    setError(null);
+    const perm = await requestRecordingPermissionsAsync();
+    if (!perm.granted) {
+      setError('Sem permissão de microfone — você ainda pode continuar sem gravar.');
+      return;
+    }
+    await setAudioModeAsync({ allowsRecording: true });
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+    setRecording(true);
+  };
+
+  const stopRecording = async () => {
+    await recorder.stop();
+    setRecording(false);
+    const uri = recorder.uri;
+    if (uri) {
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      setSample(base64);
     }
   };
 
+  const toggleRecord = () => {
+    void (recording ? stopRecording() : startRecording());
+  };
+
   const finish = () => {
-    addClonedVoice(user?.id ?? 'guest', `🎙️ Voz de ${user?.name ?? 'casa'}`, consent);
+    addClonedVoice(
+      user?.id ?? 'guest',
+      `🎙️ Voz de ${user?.name ?? 'casa'}`,
+      consent,
+      sample ? [sample] : [],
+    );
     setStep('done');
   };
+
+  const canFinish = sample !== null || error !== null;
 
   return (
     <View style={[styles.root, { backgroundColor: bg }]}>
@@ -89,15 +124,25 @@ export default function VoiceCloneModal() {
               icon={recording ? Square : Mic}
               onPress={toggleRecord}
             >
-              {recording ? 'Parar gravação' : recorded ? 'Regravar' : 'Gravar'}
+              {recording ? 'Parar gravação' : sample ? 'Regravar' : 'Gravar'}
             </Button>
             {recording ? (
               <Text variant="caption" style={{ marginTop: spacing.sm }}>
                 Gravando… 🔴
               </Text>
             ) : null}
+            {error ? (
+              <Text
+                variant="caption"
+                lightColor="#FF6B6B"
+                darkColor="#FF6B6B"
+                style={{ marginTop: spacing.sm, textAlign: 'center' }}
+              >
+                {error}
+              </Text>
+            ) : null}
           </RNView>
-          <Button onPress={finish} disabled={!recorded} style={{ marginTop: spacing.xl }}>
+          <Button onPress={finish} disabled={!canFinish} style={{ marginTop: spacing.xl }}>
             Criar minha voz
           </Button>
         </>

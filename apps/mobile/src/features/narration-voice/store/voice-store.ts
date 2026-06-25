@@ -44,7 +44,12 @@ interface VoiceState {
   allVoices: () => VoiceProfile[];
   select: (id: string) => void;
   /** inicia clonagem (offline: fica 'processing' + outbox; online idem até backend) */
-  addClonedVoice: (ownerId: string, label: string, consent: boolean) => VoiceProfile;
+  addClonedVoice: (
+    ownerId: string,
+    label: string,
+    consent: boolean,
+    samplesBase64?: string[],
+  ) => VoiceProfile;
   /** atualiza a voz clonada quando o backend conclui (chamado pelo sync handler) */
   markCloned: (id: string, providerVoiceId: string) => void;
 }
@@ -56,7 +61,7 @@ export const useVoice = create<VoiceState>()(
       selectedVoiceId: 'preset-fada',
       allVoices: () => [...VOICE_PRESETS, ...get().cloned],
       select: (id) => set({ selectedVoiceId: id }),
-      addClonedVoice: (ownerId, label, consent) => {
+      addClonedVoice: (ownerId, label, consent, samplesBase64 = []) => {
         const profile: VoiceProfile = {
           id: uid('voice_'),
           ownerId,
@@ -70,7 +75,7 @@ export const useVoice = create<VoiceState>()(
           createdAt: Date.now(),
         };
         set((st) => ({ cloned: [profile, ...st.cloned], selectedVoiceId: profile.id }));
-        useSync.getState().enqueue('clone_voice', { id: profile.id, label });
+        useSync.getState().enqueue('clone_voice', { id: profile.id, label, samplesBase64 });
         return profile;
       },
       markCloned: (id, providerVoiceId) =>
