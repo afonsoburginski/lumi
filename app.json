@@ -28,7 +28,8 @@
         {
           "microphonePermission": "O Lumi usa o microfone para gravar e clonar a voz que vai narrar suas histórias."
         }
-      ]
+      ],
+      "expo-router"
     ]
   }
 }
