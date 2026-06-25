@@ -16,7 +16,7 @@ import { useAuth } from '@/features/auth/store/auth-store';
 import { useLibrary } from '@/features/community/store/library-store';
 import { useCommunity } from '@/features/community/store/community-store';
 import { useVoice } from '@/features/narration-voice/store/voice-store';
-import { generateStory } from '@/features/story-creation/services/generation';
+import { createStory } from '@/features/story-creation/services/create-story';
 import { AGE_BANDS } from '@/lib/age';
 import { radius, spacing, type AgeBand } from '@/theme/tokens';
 import type { Story, StoryTone } from '@/types/domain';
@@ -54,27 +54,24 @@ export default function CreateScreen() {
   };
 
   const generate = () =>
-    gate('create', () => {
+    gate('create', async () => {
       setPhase('generating');
-      // pequena espera para mostrar a animação mágica
-      setTimeout(() => {
-        const result = generateStory({
-          prompt,
-          ageBand: age,
-          tone,
-          authorId: user?.id ?? 'guest',
-          authorName: user?.name,
-          imageUri,
-          voiceId,
-        });
-        if (result.ok) {
-          setStory(result.story);
-          setPhase('preview');
-        } else {
-          setBlockMsg(result.blocked.reason ?? 'Vamos tentar uma ideia diferente? 🌈');
-          setPhase('blocked');
-        }
-      }, 700);
+      const result = await createStory({
+        prompt,
+        ageBand: age,
+        tone,
+        authorId: user?.id ?? 'guest',
+        authorName: user?.name,
+        imageUri,
+        voiceId,
+      });
+      if (result.ok) {
+        setStory(result.story);
+        setPhase('preview');
+      } else {
+        setBlockMsg(result.blocked.reason ?? 'Vamos tentar uma ideia diferente? 🌈');
+        setPhase('blocked');
+      }
     });
 
   const reset = () => {

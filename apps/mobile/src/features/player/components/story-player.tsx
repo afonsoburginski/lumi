@@ -13,13 +13,20 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { ChevronLeft, ChevronRight, Pause, Play, Volume2, X } from 'lucide-react-native';
 
 import { Icon } from '@/components/ui/icon';
 import { useVoice } from '@/features/narration-voice/store/voice-store';
+import { useConnectivity } from '@/lib/net/connectivity';
+import { config } from '@/config';
+import {
+  fetchNarration,
+  type RemoteNarration,
+} from '@/features/narration-voice/services/narration';
 import { Colors, withOpacity } from '@/theme/colors';
 import { radius, spacing } from '@/theme/tokens';
-import type { Story, StoryPage } from '@/types/domain';
+import type { Story, StoryPage, WordTiming } from '@/types/domain';
 
 interface StoryPlayerProps {
   story: Story;
@@ -35,8 +42,9 @@ const OVERLAY = withOpacity('#1E1B2E', 0.55);
 /**
  * Player de leitura imersivo (ver docs/specs/mods/player/spec.md).
  * Swipe horizontal, imagem de fundo, texto sobreposto com karaokê e
- * controles de áudio. A reprodução é simulada por um timer; o ponto de
- * integração com áudio real (expo-audio) está isolado no hook `usePlayback`.
+ * controles de áudio. A reprodução usa áudio real (expo-audio) quando a API
+ * retorna narração; offline/sem áudio, cai num timer simulado — tudo isolado
+ * no hook `useNarratedPlayback`.
  */
 export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPlayerProps) {
   const { width, height } = useWindowDimensions();
@@ -44,14 +52,14 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
   const listRef = useRef<FlatList<StoryPage>>(null);
 
   const [currentPage, setCurrentPage] = useState(initialPage);
-  const { isPlaying, positionMs, durationMs, togglePlay, seek, resetForPage } = usePlayback(
-    story.pages[currentPage],
-  );
 
   // Voz da narração (presets + voz clonada da família)
   const voices = useVoice((s) => s.allVoices());
   const selectedVoiceId = useVoice((s) => s.selectedVoiceId);
   const selectVoice = useVoice((s) => s.select);
+
+  const { isPlaying, positionMs, durationMs, togglePlay, seek, resetForPage, wordTimings } =
+    useNarratedPlayback(story.pages[currentPage], selectedVoiceId);
   const activeVoice = voices.find((v) => v.id === selectedVoiceId) ?? voices[0];
   const cycleVoice = useCallback(() => {
     const idx = voices.findIndex((v) => v.id === selectedVoiceId);
@@ -137,12 +145,13 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
             <KaraokeText
               page={item}
               positionMs={item.id === story.pages[currentPage].id ? positionMs : 0}
+              wordTimings={item.id === story.pages[currentPage].id ? wordTimings : undefined}
             />
           </View>
         </ImageBackground>
       </Pressable>
     ),
-    [width, height, toggleChrome, insets.bottom, positionMs, currentPage, story.pages],
+    [width, height, toggleChrome, insets.bottom, positionMs, wordTimings, currentPage, story.pages],
   );
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
@@ -236,8 +245,16 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
 
 /* ----------------------- Texto com efeito karaokê ----------------------- */
 
-function KaraokeText({ page, positionMs }: { page: StoryPage; positionMs: number }) {
-  const timings = page.wordTimings;
+function KaraokeText({
+  page,
+  positionMs,
+  wordTimings,
+}: {
+  page: StoryPage;
+  positionMs: number;
+  wordTimings?: WordTiming[];
+}) {
+  const timings = wordTimings ?? page.wordTimings;
 
   if (!timings || timings.length === 0) {
     return <RNText style={styles.readingText}>{page.text}</RNText>;
@@ -258,62 +275,115 @@ function KaraokeText({ page, positionMs }: { page: StoryPage; positionMs: number
   );
 }
 
-/* ------------- Hook de reprodução (integração c/ áudio real) ------------ */
+/* ------------- Hook de reprodução (áudio real OU simulado) -------------- */
+/**
+ * Quando há backend online, busca a narração (/voice/synthesize): se vier áudio
+ * (ElevenLabs), toca com expo-audio e dirige a posição pelo relógio do áudio;
+ * sempre usa os wordTimings retornados para o karaokê. Sem áudio (offline/mock),
+ * cai num timer simulado dirigido pelos wordTimings locais.
+ */
+function useNarratedPlayback(page: StoryPage, voiceId: string) {
+  const online = useConnectivity((s) => s.isOnline);
 
-function usePlayback(page: StoryPage) {
-  const durationMs = useMemo(() => {
-    const last = page.wordTimings?.[page.wordTimings.length - 1];
+  // Narração remota (áudio + timings)
+  const [remote, setRemote] = useState<RemoteNarration | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setRemote(null);
+    if (!config.useMocks && online) {
+      fetchNarration(page.text, voiceId)
+        .then((r) => {
+          if (!cancelled) setRemote(r);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [page.id, page.text, voiceId, online]);
+
+  const audioSource = remote?.audioUri ? { uri: remote.audioUri } : undefined;
+  const player = useAudioPlayer(audioSource);
+  const status = useAudioPlayerStatus(player);
+  const hasAudio = Boolean(remote?.audioUri) && status.isLoaded;
+
+  // Timings ativos: remotos quando houver, senão os da página (offline)
+  const wordTimings = remote?.wordTimings ?? page.wordTimings ?? [];
+
+  // Fallback simulado (timer)
+  const simDuration = useMemo(() => {
+    const last = wordTimings[wordTimings.length - 1];
     return last ? last.endMs : 6000;
-  }, [page]);
-
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [positionMs, setPositionMs] = useState(0);
+  }, [wordTimings]);
+  const [simPlaying, setSimPlaying] = useState(true);
+  const [simPos, setSimPos] = useState(0);
   const tick = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const stopTick = useCallback(() => {
-    if (tick.current) {
-      clearInterval(tick.current);
-      tick.current = null;
-    }
-  }, []);
+  useEffect(() => {
+    // reseta ao trocar de página
+    setSimPos(0);
+    setSimPlaying(true);
+  }, [page.id]);
 
   useEffect(() => {
-    if (!isPlaying) {
-      stopTick();
+    if (hasAudio || !simPlaying) {
+      if (tick.current) clearInterval(tick.current);
+      tick.current = null;
       return;
     }
     const STEP = 50;
     tick.current = setInterval(() => {
-      setPositionMs((prev) => {
+      setSimPos((prev) => {
         const next = prev + STEP;
-        if (next >= durationMs) {
-          stopTick();
-          return durationMs;
+        if (next >= simDuration) {
+          if (tick.current) clearInterval(tick.current);
+          tick.current = null;
+          return simDuration;
         }
         return next;
       });
     }, STEP);
-    return stopTick;
-  }, [isPlaying, durationMs, stopTick]);
+    return () => {
+      if (tick.current) clearInterval(tick.current);
+      tick.current = null;
+    };
+  }, [hasAudio, simPlaying, simDuration]);
 
-  const togglePlay = useCallback(() => {
-    setIsPlaying((p) => {
-      if (!p && positionMs >= durationMs) setPositionMs(0);
-      return !p;
-    });
-  }, [positionMs, durationMs]);
+  // Autoplay quando o áudio real carrega
+  useEffect(() => {
+    if (hasAudio) player.play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAudio]);
 
-  const seek = useCallback(
-    (ms: number) => setPositionMs(Math.max(0, Math.min(ms, durationMs))),
-    [durationMs],
-  );
+  if (hasAudio) {
+    const durationMs = (status.duration || simDuration / 1000) * 1000;
+    return {
+      isPlaying: status.playing,
+      positionMs: status.currentTime * 1000,
+      durationMs,
+      wordTimings,
+      togglePlay: () => (status.playing ? player.pause() : player.play()),
+      seek: (ms: number) => player.seekTo(ms / 1000),
+      resetForPage: (_next: StoryPage) => {},
+    };
+  }
 
-  const resetForPage = useCallback((_next: StoryPage) => {
-    setPositionMs(0);
-    setIsPlaying(true);
-  }, []);
-
-  return { isPlaying, positionMs, durationMs, togglePlay, seek, resetForPage };
+  return {
+    isPlaying: simPlaying,
+    positionMs: simPos,
+    durationMs: simDuration,
+    wordTimings,
+    togglePlay: () =>
+      setSimPlaying((p) => {
+        if (!p && simPos >= simDuration) setSimPos(0);
+        return !p;
+      }),
+    seek: (ms: number) => setSimPos(Math.max(0, Math.min(ms, simDuration))),
+    resetForPage: (_next: StoryPage) => {
+      setSimPos(0);
+      setSimPlaying(true);
+    },
+  };
 }
 
 /* --------------------------- Botão redondo ----------------------------- */

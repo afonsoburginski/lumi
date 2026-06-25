@@ -5,6 +5,7 @@ import { ageBandSchema, createStoryRequestSchema, listStoriesQuerySchema, storyT
 import { prisma } from '@/db';
 import { requireAuth, type AuthEnv } from '@/middleware/auth';
 import { aiProvider } from '@/ai';
+import { imageProvider } from '@/image';
 import { moderateText } from '@/safety/moderation';
 
 export const storyRoutes = new Hono<AuthEnv>();
@@ -82,11 +83,18 @@ storyRoutes.post('/generate', requireAuth, async (c) => {
   if (blocked) {
     return c.json({ error: 'blocked', message: blocked.reason, categories: blocked.categories }, 422);
   }
+  // 4) Ilustração (capa + imagens por página)
+  const art = await imageProvider.illustrate({
+    title: story.title,
+    tone: parsed.data.tone,
+    pageTexts: story.pages.map((p) => p.text),
+  });
   return c.json({
     title: story.title,
     ageBand: parsed.data.ageBand,
     tone: parsed.data.tone,
-    pages: story.pages.map((p) => ({ text: p.text })),
+    coverColors: art.coverColors,
+    pages: story.pages.map((p, i) => ({ text: p.text, imageUri: art.pageImages[i] })),
     provider: aiProvider.name,
   });
 });

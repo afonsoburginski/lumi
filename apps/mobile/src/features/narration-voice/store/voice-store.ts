@@ -45,6 +45,8 @@ interface VoiceState {
   select: (id: string) => void;
   /** inicia clonagem (offline: fica 'processing' + outbox; online idem até backend) */
   addClonedVoice: (ownerId: string, label: string, consent: boolean) => VoiceProfile;
+  /** atualiza a voz clonada quando o backend conclui (chamado pelo sync handler) */
+  markCloned: (id: string, providerVoiceId: string) => void;
 }
 
 export const useVoice = create<VoiceState>()(
@@ -71,6 +73,12 @@ export const useVoice = create<VoiceState>()(
         useSync.getState().enqueue('clone_voice', { id: profile.id, label });
         return profile;
       },
+      markCloned: (id, providerVoiceId) =>
+        set((st) => ({
+          cloned: st.cloned.map((v) =>
+            v.id === id ? { ...v, providerVoiceId, status: 'ready' } : v,
+          ),
+        })),
     }),
     { name: 'lumi-voice', storage: zustandStorage },
   ),
