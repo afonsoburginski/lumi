@@ -1,0 +1,4 @@
+# Expo/Metro espera um node_modules "flat" (hoisted). O layout isolado padrão do
+# bun (node_modules/.bun) quebra a resolução de pacotes como @expo/metro-runtime.
+[install]
+linker = "hoisted"
