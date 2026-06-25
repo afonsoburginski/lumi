@@ -14,11 +14,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 export type ButtonVariant =
   | 'default'
@@ -64,7 +60,7 @@ export const Button = forwardRef<View, ButtonProps>(
       textStyle,
       ...props
     },
-    ref
+    ref,
   ) => {
     const primaryColor = useColor('primary');
     const primaryForegroundColor = useColor('primaryForeground');
@@ -295,11 +291,11 @@ export const Button = forwardRef<View, ButtonProps>(
             alignSelf: 'stretch',
           }
         : flexValue !== null
-        ? {
-            flex: flexValue,
-            maxHeight: size === 'sm' ? 44 : size === 'lg' ? 54 : HEIGHT,
-          }
-        : {};
+          ? {
+              flex: flexValue,
+              maxHeight: size === 'sm' ? 44 : size === 'lg' ? 54 : HEIGHT,
+            }
+          : {};
     };
 
     // Updated getStyleWithoutFlex function
@@ -334,27 +330,15 @@ export const Button = forwardRef<View, ButtonProps>(
       >
         <Animated.View style={[animatedStyle, buttonStyle, styleWithoutFlex]}>
           {loading ? (
-            <ButtonSpinner
-              size={size}
-              variant={loadingVariant}
-              color={contentColor}
-            />
+            <ButtonSpinner size={size} variant={loadingVariant} color={contentColor} />
           ) : typeof children === 'string' ? (
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-            >
-              {icon && (
-                <Icon name={icon} color={contentColor} size={iconSize} />
-              )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {icon && <Icon name={icon} color={contentColor} size={iconSize} />}
               <Text style={[finalTextStyle, textStyle]}>{children}</Text>
             </View>
           ) : (
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
-            >
-              {icon && (
-                <Icon name={icon} color={contentColor} size={iconSize} />
-              )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {icon && <Icon name={icon} color={contentColor} size={iconSize} />}
               {children}
             </View>
           )}
@@ -370,11 +354,7 @@ export const Button = forwardRef<View, ButtonProps>(
         {...props}
       >
         {loading ? (
-          <ButtonSpinner
-            size={size}
-            variant={loadingVariant}
-            color={contentColor}
-          />
+          <ButtonSpinner size={size} variant={loadingVariant} color={contentColor} />
         ) : typeof children === 'string' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {icon && <Icon name={icon} color={contentColor} size={iconSize} />}
@@ -385,7 +365,7 @@ export const Button = forwardRef<View, ButtonProps>(
         )}
       </TouchableOpacity>
     );
-  }
+  },
 );
 
 // Add display name for better debugging

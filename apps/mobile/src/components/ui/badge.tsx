@@ -4,12 +4,7 @@ import { useColor } from '@/hooks/useColor';
 import { CORNERS } from '@/theme/globals';
 import { TextStyle, ViewStyle } from 'react-native';
 
-type BadgeVariant =
-  | 'default'
-  | 'secondary'
-  | 'destructive'
-  | 'outline'
-  | 'success';
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'success';
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -18,12 +13,7 @@ interface BadgeProps {
   textStyle?: TextStyle;
 }
 
-export function Badge({
-  children,
-  variant = 'default',
-  style,
-  textStyle,
-}: BadgeProps) {
+export function Badge({ children, variant = 'default', style, textStyle }: BadgeProps) {
   const primaryColor = useColor('primary');
   const primaryForegroundColor = useColor('primaryForeground');
   const secondaryColor = useColor('secondary');

@@ -33,7 +33,12 @@ export default function SignupScreen() {
       <Text variant="caption" style={{ marginBottom: spacing.lg }}>
         Vamos personalizar as histórias para a idade da criança 🎈
       </Text>
-      <Input placeholder="Seu nome" value={name} onChangeText={setName} containerStyle={styles.field} />
+      <Input
+        placeholder="Seu nome"
+        value={name}
+        onChangeText={setName}
+        containerStyle={styles.field}
+      />
       <Input
         placeholder="E-mail"
         autoCapitalize="none"

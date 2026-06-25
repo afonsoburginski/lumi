@@ -44,7 +44,7 @@ export function AudioPlayer({
       const noise = (Math.random() - 0.5) * 0.25;
       const peak = Math.random() < 0.15 ? Math.random() * 0.4 : 0; // Occasional peaks
       return Math.max(0.15, Math.min(0.95, (base1 + base2) / 2 + noise + peak));
-    })
+    }),
   );
 
   // Theme colors
@@ -114,7 +114,7 @@ export function AudioPlayer({
         setPosition(clampedPosition);
       }
     },
-    [player, duration]
+    [player, duration],
   );
 
   // Handle waveform seeking
@@ -125,7 +125,7 @@ export function AudioPlayer({
         seekToPosition(newPosition);
       }
     },
-    [duration, seekToPosition]
+    [duration, seekToPosition],
   );
 
   // Handle progress bar seeking
@@ -136,7 +136,7 @@ export function AudioPlayer({
         seekToPosition(newPosition);
       }
     },
-    [duration, seekToPosition]
+    [duration, seekToPosition],
   );
 
   // Handle seeking start/end for smooth updates
@@ -157,9 +157,7 @@ export function AudioPlayer({
   const progressPercentage = duration > 0 ? (position / duration) * 100 : 0;
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: secondaryColor }, style]}
-    >
+    <View style={[styles.container, { backgroundColor: secondaryColor }, style]}>
       {/* Waveform Visualization with seeking capability */}
       {showWaveform && (
         <View style={styles.waveformContainer}>
@@ -202,8 +200,8 @@ export function AudioPlayer({
       {showControls && (
         <View style={styles.controlsContainer}>
           <Button
-            variant='ghost'
-            size='icon'
+            variant="ghost"
+            size="icon"
             onPress={handleBackFiveSeconds}
             style={styles.controlButton}
             disabled={!player.isLoaded}
@@ -212,22 +210,18 @@ export function AudioPlayer({
           </Button>
 
           <Button
-            size='icon'
-            variant='destructive'
+            size="icon"
+            variant="destructive"
             onPress={handlePlayPause}
             disabled={!player.isLoaded}
             style={styles.playButton}
           >
-            {player.playing ? (
-              <Pause size={24} color='white' />
-            ) : (
-              <Play size={24} color='white' />
-            )}
+            {player.playing ? <Pause size={24} color="white" /> : <Play size={24} color="white" />}
           </Button>
 
           <Button
-            variant='ghost'
-            size='icon'
+            variant="ghost"
+            size="icon"
             onPress={handleRestart}
             style={styles.controlButton}
             disabled={!player.isLoaded}
@@ -240,7 +234,7 @@ export function AudioPlayer({
       {/* Timer */}
       {showTimer && (
         <View style={styles.timerContainer}>
-          <Text variant='caption' style={{ color: mutedColor }}>
+          <Text variant="caption" style={{ color: mutedColor }}>
             {formatTime(position)} / {formatTime(duration)}
           </Text>
         </View>
@@ -249,7 +243,7 @@ export function AudioPlayer({
       {/* Loading State */}
       {!player.isLoaded && (
         <View style={styles.loadingContainer}>
-          <Text variant='caption' style={{ color: mutedColor }}>
+          <Text variant="caption" style={{ color: mutedColor }}>
             Loading audio...
           </Text>
         </View>

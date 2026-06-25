@@ -4,14 +4,7 @@ import { useColor } from '@/hooks/useColor';
 import { BORDER_RADIUS, CORNERS, FONT_SIZE, HEIGHT } from '@/theme/globals';
 import { LucideProps } from 'lucide-react-native';
 import React, { forwardRef, ReactElement, useState } from 'react';
-import {
-  Pressable,
-  TextInput,
-  TextInputProps,
-  TextStyle,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Pressable, TextInput, TextInputProps, TextStyle, View, ViewStyle } from 'react-native';
 
 export interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -49,7 +42,7 @@ export const Input = forwardRef<TextInput, InputProps>(
       placeholder,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [isFocused, setIsFocused] = useState(false);
 
@@ -125,9 +118,7 @@ export const Input = forwardRef<TextInput, InputProps>(
       if (!rightComponent) return null;
 
       // If it's a function, call it. Otherwise, render directly
-      return typeof rightComponent === 'function'
-        ? rightComponent()
-        : rightComponent;
+      return typeof rightComponent === 'function' ? rightComponent() : rightComponent;
     };
 
     const renderInputContent = () => (
@@ -163,27 +154,21 @@ export const Input = forwardRef<TextInput, InputProps>(
                       alignItems: 'center',
                       gap: 8,
                     }}
-                    pointerEvents='none'
+                    pointerEvents="none"
                   >
-                    {icon && (
-                      <Icon
-                        name={icon}
-                        size={16}
-                        color={error ? danger : muted}
-                      />
-                    )}
+                    {icon && <Icon name={icon} size={16} color={error ? danger : muted} />}
                     {label && (
                       <Text
-                        variant='caption'
+                        variant="caption"
                         numberOfLines={1}
-                        ellipsizeMode='tail'
+                        ellipsizeMode="tail"
                         style={[
                           {
                             color: error ? danger : muted,
                           },
                           labelStyle,
                         ]}
-                        pointerEvents='none'
+                        pointerEvents="none"
                       >
                         {label}
                       </Text>
@@ -227,23 +212,21 @@ export const Input = forwardRef<TextInput, InputProps>(
                   alignItems: 'center',
                   gap: 8,
                 }}
-                pointerEvents='none'
+                pointerEvents="none"
               >
-                {icon && (
-                  <Icon name={icon} size={16} color={error ? danger : muted} />
-                )}
+                {icon && <Icon name={icon} size={16} color={error ? danger : muted} />}
                 {label && (
                   <Text
-                    variant='caption'
+                    variant="caption"
                     numberOfLines={1}
-                    ellipsizeMode='tail'
+                    ellipsizeMode="tail"
                     style={[
                       {
                         color: error ? danger : muted,
                       },
                       labelStyle,
                     ]}
-                    pointerEvents='none'
+                    pointerEvents="none"
                   >
                     {label}
                   </Text>
@@ -291,7 +274,7 @@ export const Input = forwardRef<TextInput, InputProps>(
     );
 
     return renderInputContent();
-  }
+  },
 );
 
 export interface GroupedInputProps {
@@ -316,17 +299,14 @@ export const GroupedInput = ({
   const errors = childrenArray
     .filter(
       (child): child is ReactElement<any> =>
-        React.isValidElement(child) && !!(child.props as any).error
+        React.isValidElement(child) && !!(child.props as any).error,
     )
     .map((child) => child.props.error);
 
   const renderGroupedContent = () => (
     <View style={containerStyle}>
       {!!title && (
-        <Text
-          variant='title'
-          style={[{ marginBottom: 8, marginLeft: 8 }, titleStyle]}
-        >
+        <Text variant="title" style={[{ marginBottom: 8, marginLeft: 8 }, titleStyle]}>
           {title}
         </Text>
       )}
@@ -411,7 +391,7 @@ export const GroupedInputItem = forwardRef<TextInput, GroupedInputItemProps>(
       placeholder,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [isFocused, setIsFocused] = useState(false);
 
@@ -434,9 +414,7 @@ export const GroupedInputItem = forwardRef<TextInput, GroupedInputItemProps>(
 
     const renderRightComponent = () => {
       if (!rightComponent) return null;
-      return typeof rightComponent === 'function'
-        ? rightComponent()
-        : rightComponent;
+      return typeof rightComponent === 'function' ? rightComponent() : rightComponent;
     };
 
     const renderItemContent = () => (
@@ -473,27 +451,21 @@ export const GroupedInputItem = forwardRef<TextInput, GroupedInputItemProps>(
                       alignItems: 'center',
                       gap: 8,
                     }}
-                    pointerEvents='none'
+                    pointerEvents="none"
                   >
-                    {icon && (
-                      <Icon
-                        name={icon}
-                        size={16}
-                        color={error ? danger : muted}
-                      />
-                    )}
+                    {icon && <Icon name={icon} size={16} color={error ? danger : muted} />}
                     {label && (
                       <Text
-                        variant='caption'
+                        variant="caption"
                         numberOfLines={1}
-                        ellipsizeMode='tail'
+                        ellipsizeMode="tail"
                         style={[
                           {
                             color: error ? danger : muted,
                           },
                           labelStyle,
                         ]}
-                        pointerEvents='none'
+                        pointerEvents="none"
                       >
                         {label}
                       </Text>
@@ -548,23 +520,21 @@ export const GroupedInputItem = forwardRef<TextInput, GroupedInputItemProps>(
                   alignItems: 'center',
                   gap: 8,
                 }}
-                pointerEvents='none'
+                pointerEvents="none"
               >
-                {icon && (
-                  <Icon name={icon} size={16} color={error ? danger : muted} />
-                )}
+                {icon && <Icon name={icon} size={16} color={error ? danger : muted} />}
                 {label && (
                   <Text
-                    variant='caption'
+                    variant="caption"
                     numberOfLines={1}
-                    ellipsizeMode='tail'
+                    ellipsizeMode="tail"
                     style={[
                       {
                         color: error ? danger : muted,
                       },
                       labelStyle,
                     ]}
-                    pointerEvents='none'
+                    pointerEvents="none"
                   >
                     {label}
                   </Text>
@@ -603,5 +573,5 @@ export const GroupedInputItem = forwardRef<TextInput, GroupedInputItemProps>(
     );
 
     return renderItemContent();
-  }
+  },
 );

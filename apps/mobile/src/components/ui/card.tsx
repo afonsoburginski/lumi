@@ -52,7 +52,7 @@ interface CardTitleProps {
 export function CardTitle({ children, style }: CardTitleProps) {
   return (
     <Text
-      variant='title'
+      variant="title"
       style={[
         {
           marginBottom: 4,
@@ -72,7 +72,7 @@ interface CardDescriptionProps {
 
 export function CardDescription({ children, style }: CardDescriptionProps) {
   return (
-    <Text variant='caption' style={[style]}>
+    <Text variant="caption" style={[style]}>
       {children}
     </Text>
   );

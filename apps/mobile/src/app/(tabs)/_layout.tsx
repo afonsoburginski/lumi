@@ -27,19 +27,31 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Início', tabBarIcon: ({ color }) => <BookOpen color={color} size={24} /> }}
+        options={{
+          title: 'Início',
+          tabBarIcon: ({ color }) => <BookOpen color={color} size={24} />,
+        }}
       />
       <Tabs.Screen
         name="explore"
-        options={{ title: 'Explorar', tabBarIcon: ({ color }) => <Compass color={color} size={24} /> }}
+        options={{
+          title: 'Explorar',
+          tabBarIcon: ({ color }) => <Compass color={color} size={24} />,
+        }}
       />
       <Tabs.Screen
         name="create"
-        options={{ title: 'Criar', tabBarIcon: ({ color }) => <Sparkles color={color} size={26} /> }}
+        options={{
+          title: 'Criar',
+          tabBarIcon: ({ color }) => <Sparkles color={color} size={26} />,
+        }}
       />
       <Tabs.Screen
         name="library"
-        options={{ title: 'Biblioteca', tabBarIcon: ({ color }) => <Library color={color} size={24} /> }}
+        options={{
+          title: 'Biblioteca',
+          tabBarIcon: ({ color }) => <Library color={color} size={24} />,
+        }}
       />
       <Tabs.Screen
         name="profile"

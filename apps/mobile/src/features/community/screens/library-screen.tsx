@@ -35,13 +35,25 @@ export default function LibraryScreen() {
   return (
     <Screen title="📚 Minha Biblioteca">
       <RNView style={styles.tabs}>
-        <Button size="sm" variant={tab === 'stories' ? 'default' : 'secondary'} onPress={() => setTab('stories')}>
+        <Button
+          size="sm"
+          variant={tab === 'stories' ? 'default' : 'secondary'}
+          onPress={() => setTab('stories')}
+        >
           Minhas
         </Button>
-        <Button size="sm" variant={tab === 'favorites' ? 'default' : 'secondary'} onPress={() => setTab('favorites')}>
+        <Button
+          size="sm"
+          variant={tab === 'favorites' ? 'default' : 'secondary'}
+          onPress={() => setTab('favorites')}
+        >
           Favoritos
         </Button>
-        <Button size="sm" variant={tab === 'collections' ? 'default' : 'secondary'} onPress={() => setTab('collections')}>
+        <Button
+          size="sm"
+          variant={tab === 'collections' ? 'default' : 'secondary'}
+          onPress={() => setTab('collections')}
+        >
           Coleções
         </Button>
       </RNView>

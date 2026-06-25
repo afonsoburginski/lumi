@@ -16,7 +16,15 @@ export default function PlayerRoute() {
   // Offline-first: histórias não baixadas não podem ser lidas sem rede.
   if (story && story.downloaded === false) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#1E1B2E', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#1E1B2E',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
         <Text variant="subtitle" lightColor="#FFF" darkColor="#FFF" style={{ textAlign: 'center' }}>
           Esta história não está disponível offline. Baixe quando tiver internet. ☁️
         </Text>
@@ -29,7 +37,15 @@ export default function PlayerRoute() {
 
   if (!story) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#1E1B2E', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#1E1B2E',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
         <Text variant="subtitle" lightColor="#FFF" darkColor="#FFF">
           História não encontrada.
         </Text>

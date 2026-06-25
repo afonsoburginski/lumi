@@ -9,9 +9,33 @@ import type { VoiceProfile } from '@/types/domain';
 
 /** Presets de voz de IA (offline: disponíveis como rótulos). */
 export const VOICE_PRESETS: VoiceProfile[] = [
-  { id: 'preset-epico', ownerId: 'system', type: 'preset', label: '🎙️ Narrador Épico', providerVoiceId: 'epic', status: 'ready', createdAt: 0 },
-  { id: 'preset-fada', ownerId: 'system', type: 'preset', label: '🧚 Fada', providerVoiceId: 'fairy', status: 'ready', createdAt: 0 },
-  { id: 'preset-vovo', ownerId: 'system', type: 'preset', label: '👴 Vovô', providerVoiceId: 'grandpa', status: 'ready', createdAt: 0 },
+  {
+    id: 'preset-epico',
+    ownerId: 'system',
+    type: 'preset',
+    label: '🎙️ Narrador Épico',
+    providerVoiceId: 'epic',
+    status: 'ready',
+    createdAt: 0,
+  },
+  {
+    id: 'preset-fada',
+    ownerId: 'system',
+    type: 'preset',
+    label: '🧚 Fada',
+    providerVoiceId: 'fairy',
+    status: 'ready',
+    createdAt: 0,
+  },
+  {
+    id: 'preset-vovo',
+    ownerId: 'system',
+    type: 'preset',
+    label: '👴 Vovô',
+    providerVoiceId: 'grandpa',
+    status: 'ready',
+    createdAt: 0,
+  },
 ];
 
 interface VoiceState {

@@ -24,9 +24,7 @@ export interface GenerateInput {
   voiceId?: string;
 }
 
-export type GenerateResult =
-  | { ok: true; story: Story }
-  | { ok: false; blocked: ModerationResult };
+export type GenerateResult = { ok: true; story: Story } | { ok: false; blocked: ModerationResult };
 
 const COVER_GRADIENTS: Record<StoryTone, [string, string]> = {
   calma: ['#6C5CE7', '#A29BFE'],
@@ -91,9 +89,7 @@ export function generateStory(input: GenerateInput): GenerateResult {
   const pages = buildPages(input);
 
   // 3) Safety — moderação de SAÍDA (cada página)
-  const outRejected = pages
-    .map((p) => moderateText(p.text))
-    .find((r) => r.status === 'rejected');
+  const outRejected = pages.map((p) => moderateText(p.text)).find((r) => r.status === 'rejected');
   if (outRejected) return { ok: false, blocked: outRejected };
 
   const story: Story = {

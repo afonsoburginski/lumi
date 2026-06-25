@@ -40,7 +40,9 @@ export default function ProfileScreen() {
         <RNView style={{ marginLeft: spacing.md, flex: 1 }}>
           <Text variant="subtitle">{user ? user.name : 'Visitante'}</Text>
           <Text variant="caption">
-            {user ? `Faixa ${user.ageBand} anos · ${user.email}` : 'Entre para criar e salvar histórias'}
+            {user
+              ? `Faixa ${user.ageBand} anos · ${user.email}`
+              : 'Entre para criar e salvar histórias'}
           </Text>
         </RNView>
       </RNView>
@@ -50,7 +52,11 @@ export default function ProfileScreen() {
           <Button onPress={() => router.push('/(auth)/signup')} style={{ marginTop: spacing.lg }}>
             Criar conta grátis
           </Button>
-          <Button variant="ghost" onPress={() => router.push('/(auth)/login')} style={{ marginTop: spacing.sm }}>
+          <Button
+            variant="ghost"
+            onPress={() => router.push('/(auth)/login')}
+            style={{ marginTop: spacing.sm }}
+          >
             Já tenho conta
           </Button>
         </>
@@ -102,7 +108,11 @@ export default function ProfileScreen() {
       <Text variant="subtitle" style={{ marginBottom: spacing.sm }}>
         Conectividade (demo)
       </Text>
-      <Button icon={isOnline ? Wifi : WifiOff} variant={isOnline ? 'secondary' : 'destructive'} onPress={toggleOnline}>
+      <Button
+        icon={isOnline ? Wifi : WifiOff}
+        variant={isOnline ? 'secondary' : 'destructive'}
+        onPress={toggleOnline}
+      >
         {isOnline ? 'Online — tocar para simular offline' : 'Offline — tocar para voltar online'}
       </Button>
       {pending > 0 ? (

@@ -54,8 +54,8 @@ export default function VoiceCloneModal() {
       {step === 'consent' && (
         <>
           <Text variant="caption" style={{ marginBottom: spacing.lg }}>
-            Vamos gravar sua voz para narrar as histórias. Sua voz é um dado sensível: usamos
-            apenas para narrar histórias da sua família e você pode apagá-la quando quiser.
+            Vamos gravar sua voz para narrar as histórias. Sua voz é um dado sensível: usamos apenas
+            para narrar histórias da sua família e você pode apagá-la quando quiser.
           </Text>
           <Checkbox
             checked={consent}

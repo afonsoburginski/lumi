@@ -53,26 +53,21 @@ export function Checkbox({
         }}
       >
         {checked && (
-          <Check
-            size={16}
-            color={primaryForegroundColor}
-            strokeWidth={3}
-            strokeLinecap='round'
-          />
+          <Check size={16} color={primaryForegroundColor} strokeWidth={3} strokeLinecap="round" />
         )}
       </View>
       {label && (
         <Text
-          variant='caption'
+          variant="caption"
           numberOfLines={1}
-          ellipsizeMode='tail'
+          ellipsizeMode="tail"
           style={[
             {
               color: error ? danger : primary,
             },
             labelStyle,
           ]}
-          pointerEvents='none'
+          pointerEvents="none"
         >
           {label}
         </Text>

@@ -141,10 +141,19 @@ export default function CreateScreen() {
             <Text variant="body">{p.text}</Text>
           </View>
         ))}
-        <Button icon={Sparkles} onPress={() => router.push(`/player/${story.id}`)} style={{ marginTop: spacing.md }}>
+        <Button
+          icon={Sparkles}
+          onPress={() => router.push(`/player/${story.id}`)}
+          style={{ marginTop: spacing.md }}
+        >
           Ler agora
         </Button>
-        <Button icon={Check} variant="secondary" onPress={() => save(false)} style={{ marginTop: spacing.sm }}>
+        <Button
+          icon={Check}
+          variant="secondary"
+          onPress={() => save(false)}
+          style={{ marginTop: spacing.sm }}
+        >
           Salvar na biblioteca
         </Button>
         <Button onPress={() => save(true)} style={{ marginTop: spacing.sm }}>
@@ -171,7 +180,12 @@ export default function CreateScreen() {
         inputStyle={{ minHeight: 96 }}
       />
 
-      <Button variant="outline" icon={Camera} onPress={pickImage} style={{ marginBottom: spacing.sm }}>
+      <Button
+        variant="outline"
+        icon={Camera}
+        onPress={pickImage}
+        style={{ marginBottom: spacing.sm }}
+      >
         {imageUri ? 'Trocar foto do desenho' : 'Adicionar foto de um desenho'}
       </Button>
       {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : null}
@@ -181,7 +195,12 @@ export default function CreateScreen() {
       </Text>
       <RNView style={styles.chips}>
         {AGE_BANDS.map((b) => (
-          <Button key={b} size="sm" variant={age === b ? 'default' : 'secondary'} onPress={() => setAge(b)}>
+          <Button
+            key={b}
+            size="sm"
+            variant={age === b ? 'default' : 'secondary'}
+            onPress={() => setAge(b)}
+          >
             {`${b} anos`}
           </Button>
         ))}
@@ -192,7 +211,12 @@ export default function CreateScreen() {
       </Text>
       <RNView style={styles.chips}>
         {TONES.map((t) => (
-          <Button key={t.key} size="sm" variant={tone === t.key ? 'default' : 'secondary'} onPress={() => setTone(t.key)}>
+          <Button
+            key={t.key}
+            size="sm"
+            variant={tone === t.key ? 'default' : 'secondary'}
+            onPress={() => setTone(t.key)}
+          >
             {t.label}
           </Button>
         ))}
@@ -202,7 +226,12 @@ export default function CreateScreen() {
         <Text variant="caption">🛡️ Toda história passa por uma verificação de segurança.</Text>
       </View>
 
-      <Button icon={Wand2} disabled={prompt.trim().length === 0} onPress={generate} style={{ marginTop: spacing.lg }}>
+      <Button
+        icon={Wand2}
+        disabled={prompt.trim().length === 0}
+        onPress={generate}
+        style={{ marginTop: spacing.lg }}
+      >
         Gerar minha história
       </Button>
     </Screen>

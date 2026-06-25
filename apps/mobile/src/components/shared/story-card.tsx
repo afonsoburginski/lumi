@@ -32,7 +32,8 @@ export function StoryCard({ story }: { story: Story }) {
             <View style={styles.pendingBadge}>
               <Icon name={CloudOff} color="#FFFFFF" size={12} />
               <Text variant="caption" lightColor="#FFFFFF" darkColor="#FFFFFF">
-                {' '}pendente
+                {' '}
+                pendente
               </Text>
             </View>
           ) : (
@@ -63,7 +64,12 @@ export function StoryCard({ story }: { story: Story }) {
 
 const styles = StyleSheet.create({
   card: { overflow: 'hidden', borderRadius: radius.lg },
-  cover: { height: 150, padding: spacing.md, flexDirection: 'row', justifyContent: 'space-between' },
+  cover: {
+    height: 150,
+    padding: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   playBadge: {
     width: 44,
     height: 44,
@@ -82,6 +88,11 @@ const styles = StyleSheet.create({
     height: 24,
     alignSelf: 'flex-start',
   },
-  meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
+  meta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
   likes: { flexDirection: 'row', alignItems: 'center' },
 });

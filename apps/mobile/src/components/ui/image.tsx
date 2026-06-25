@@ -2,11 +2,7 @@ import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useColor } from '@/hooks/useColor';
 import { BORDER_RADIUS, CORNERS } from '@/theme/globals';
-import {
-  Image as ExpoImage,
-  ImageProps as ExpoImageProps,
-  ImageSource,
-} from 'expo-image';
+import { Image as ExpoImage, ImageProps as ExpoImageProps, ImageSource } from 'expo-image';
 import { forwardRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 
@@ -44,7 +40,7 @@ export const Image = forwardRef<ExpoImage, ImageProps>(
       transition = 200,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
@@ -81,10 +77,9 @@ export const Image = forwardRef<ExpoImage, ImageProps>(
         : { width: '100%', height: '100%' };
 
     // Image styles - always fill the container
-    const imageStyles = [
-      { width: '100%', height: '100%', borderRadius },
-      style,
-    ].filter(Boolean) as ExpoImageProps['style'];
+    const imageStyles = [{ width: '100%', height: '100%', borderRadius }, style].filter(
+      Boolean,
+    ) as ExpoImageProps['style'];
 
     const containerStyles = [
       styles.container,
@@ -135,7 +130,7 @@ export const Image = forwardRef<ExpoImage, ImageProps>(
         {hasError && showErrorFallback && (
           <View style={[styles.overlay, styles.errorContainer]}>
             <Text
-              variant='caption'
+              variant="caption"
               style={[styles.errorText, { color: textColor }]}
               numberOfLines={2}
             >
@@ -145,7 +140,7 @@ export const Image = forwardRef<ExpoImage, ImageProps>(
         )}
       </View>
     );
-  }
+  },
 );
 
 const styles = StyleSheet.create({

@@ -75,39 +75,27 @@ interface AnimatedShapeProps {
   style: ViewStyle;
 }
 
-const AnimatedDot = React.memo(
-  ({ anim, color, size, style }: AnimatedShapeProps) => {
-    const animatedStyle = useAnimatedStyle(() => ({
-      opacity: anim.value,
-    }));
-    return (
-      <Animated.View
-        style={[
-          style,
-          { width: size, height: size, backgroundColor: color },
-          animatedStyle,
-        ]}
-      />
-    );
-  }
-);
+const AnimatedDot = React.memo(({ anim, color, size, style }: AnimatedShapeProps) => {
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: anim.value,
+  }));
+  return (
+    <Animated.View
+      style={[style, { width: size, height: size, backgroundColor: color }, animatedStyle]}
+    />
+  );
+});
 
-const AnimatedBar = React.memo(
-  ({ anim, color, size, style }: AnimatedShapeProps) => {
-    const animatedStyle = useAnimatedStyle(() => ({
-      opacity: anim.value,
-    }));
-    return (
-      <Animated.View
-        style={[
-          style,
-          { width: size / 6, height: size, backgroundColor: color },
-          animatedStyle,
-        ]}
-      />
-    );
-  }
-);
+const AnimatedBar = React.memo(({ anim, color, size, style }: AnimatedShapeProps) => {
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: anim.value,
+  }));
+  return (
+    <Animated.View
+      style={[style, { width: size / 6, height: size, backgroundColor: color }, animatedStyle]}
+    />
+  );
+});
 
 // Main Spinner Component
 export function Spinner({
@@ -135,13 +123,10 @@ export function Spinner({
   const barAnim4 = useSharedValue(0.3);
 
   // 2. Use useMemo to create a stable array reference from the values
-  const dotsAnims = useMemo(
-    () => [dotAnim1, dotAnim2, dotAnim3],
-    [dotAnim1, dotAnim2, dotAnim3]
-  );
+  const dotsAnims = useMemo(() => [dotAnim1, dotAnim2, dotAnim3], [dotAnim1, dotAnim2, dotAnim3]);
   const barsAnims = useMemo(
     () => [barAnim1, barAnim2, barAnim3, barAnim4],
-    [barAnim1, barAnim2, barAnim3, barAnim4]
+    [barAnim1, barAnim2, barAnim3, barAnim4],
   );
   // --- END FIX ---
 
@@ -158,7 +143,7 @@ export function Spinner({
     if (variant === 'circle') {
       rotate.value = withRepeat(
         withTiming(360, { duration: animationDuration, easing: Easing.linear }),
-        -1
+        -1,
       );
     } else {
       rotate.value = 0; // Reset
@@ -171,10 +156,10 @@ export function Spinner({
       pulse.value = withRepeat(
         withSequence(
           withTiming(1.3, { duration: animationDuration / 2 }),
-          withTiming(1, { duration: animationDuration / 2 })
+          withTiming(1, { duration: animationDuration / 2 }),
         ),
         -1,
-        true
+        true,
       );
     } else {
       pulse.value = 1; // Reset
@@ -189,11 +174,11 @@ export function Spinner({
           withSequence(
             withDelay(
               index * (animationDuration / 6),
-              withTiming(1, { duration: animationDuration / 3 })
+              withTiming(1, { duration: animationDuration / 3 }),
             ),
-            withTiming(0.3, { duration: animationDuration / 3 })
+            withTiming(0.3, { duration: animationDuration / 3 }),
           ),
-          -1
+          -1,
         );
       });
     } else {
@@ -209,11 +194,11 @@ export function Spinner({
           withSequence(
             withDelay(
               index * (animationDuration / 8),
-              withTiming(1, { duration: animationDuration / 4 })
+              withTiming(1, { duration: animationDuration / 4 }),
             ),
-            withTiming(0.3, { duration: animationDuration / 4 })
+            withTiming(0.3, { duration: animationDuration / 4 }),
           ),
-          -1
+          -1,
         );
       });
     } else {
@@ -233,13 +218,7 @@ export function Spinner({
   const renderSpinner = () => {
     switch (variant) {
       case 'default':
-        return (
-          <ActivityIndicator
-            size={config.size}
-            color={spinnerColor}
-            style={styles.spinner}
-          />
-        );
+        return <ActivityIndicator size={config.size} color={spinnerColor} style={styles.spinner} />;
 
       case 'circle':
         return (
@@ -382,14 +361,7 @@ export function InlineLoader({
   variant = 'default',
   color,
 }: Omit<SpinnerProps, 'label' | 'showLabel'>) {
-  return (
-    <Spinner
-      size={size}
-      variant={variant}
-      color={color}
-      style={styles.inlineLoader}
-    />
-  );
+  return <Spinner size={size} variant={variant} color={color} style={styles.inlineLoader} />;
 }
 
 // Button Spinner Component - optimized for button usage

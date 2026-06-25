@@ -27,9 +27,12 @@ interface CommunityState {
   search: (q: string) => Story[];
 
   toggleLike: (storyId: string) => void;
-  addComment: (storyId: string, authorId: string, authorName: string, text: string) =>
-    | { ok: true }
-    | { ok: false; reason: string };
+  addComment: (
+    storyId: string,
+    authorId: string,
+    authorName: string,
+    text: string,
+  ) => { ok: true } | { ok: false; reason: string };
   commentsFor: (storyId: string) => Comment[];
   rate: (storyId: string, userId: string, stars: number) => void;
   ratingFor: (storyId: string) => number;
@@ -78,7 +81,8 @@ export const useCommunity = create<CommunityState>()(
 
       addComment: (storyId, authorId, authorName, text) => {
         const mod = moderateText(text);
-        if (mod.status === 'rejected') return { ok: false, reason: mod.reason ?? 'Conteúdo bloqueado' };
+        if (mod.status === 'rejected')
+          return { ok: false, reason: mod.reason ?? 'Conteúdo bloqueado' };
         const comment: Comment = {
           id: uid('cm_'),
           storyId,

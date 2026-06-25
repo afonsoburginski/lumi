@@ -42,10 +42,16 @@ export default function CollectionDetail() {
   return (
     <View style={[styles.root, { backgroundColor: bg, paddingTop: insets.top + spacing.md }]}>
       <Text variant="heading">{collection.title}</Text>
-      <Badge variant={collection.visibility === 'public' ? 'default' : 'secondary'} style={{ marginTop: spacing.xs, alignSelf: 'flex-start' }}>
+      <Badge
+        variant={collection.visibility === 'public' ? 'default' : 'secondary'}
+        style={{ marginTop: spacing.xs, alignSelf: 'flex-start' }}
+      >
         {collection.visibility === 'public' ? 'Pública' : 'Privada (família)'}
       </Badge>
-      <ScrollView style={{ marginTop: spacing.md }} contentContainerStyle={{ paddingBottom: spacing.xl }}>
+      <ScrollView
+        style={{ marginTop: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+      >
         {stories.length === 0 ? (
           <Text variant="caption">Nenhuma história nesta coleção ainda.</Text>
         ) : (

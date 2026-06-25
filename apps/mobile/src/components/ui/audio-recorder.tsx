@@ -4,12 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { useColor } from '@/hooks/useColor';
 import { BORDER_RADIUS } from '@/theme/globals';
-import {
-  AudioModule,
-  RecordingOptions,
-  RecordingPresets,
-  useAudioRecorder,
-} from 'expo-audio';
+import { AudioModule, RecordingOptions, RecordingPresets, useAudioRecorder } from 'expo-audio';
 import { Circle, Download, Mic, Square, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Platform, StyleSheet, View, ViewStyle } from 'react-native';
@@ -47,9 +42,7 @@ export function AudioRecorder({
 }: AudioRecorderProps) {
   const recordingOptions =
     customRecordingOptions ||
-    (quality === 'high'
-      ? RecordingPresets.HIGH_QUALITY
-      : RecordingPresets.LOW_QUALITY);
+    (quality === 'high' ? RecordingPresets.HIGH_QUALITY : RecordingPresets.LOW_QUALITY);
 
   const recorder = useAudioRecorder(recordingOptions);
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -58,9 +51,7 @@ export function AudioRecorder({
   const [isRecording, setIsRecording] = useState(false);
 
   // Waveform data for real-time visualization
-  const [waveformData, setWaveformData] = useState<number[]>(
-    Array.from({ length: 30 }, () => 0.2)
-  );
+  const [waveformData, setWaveformData] = useState<number[]>(Array.from({ length: 30 }, () => 0.2));
 
   // Theme colors
   const primaryColor = useColor('primary');
@@ -86,7 +77,7 @@ export function AudioRecorder({
           Alert.alert(
             'Permission Required',
             'Please grant microphone permission to record audio.',
-            [{ text: 'OK' }]
+            [{ text: 'OK' }],
           );
         }
       } catch (error) {
@@ -103,7 +94,7 @@ export function AudioRecorder({
       recordingPulse.value = withRepeat(
         withTiming(1.2, { duration: 600, easing: Easing.inOut(Easing.ease) }),
         -1, // Infinite loop
-        true // Reverse the animation (yoyo effect)
+        true, // Reverse the animation (yoyo effect)
       );
     } else {
       // Stop the animation and reset the scale
@@ -203,10 +194,7 @@ export function AudioRecorder({
 
   const handleStartRecording = async () => {
     if (!permissionGranted) {
-      Alert.alert(
-        'Permission Required',
-        'Microphone permission is required to record audio.'
-      );
+      Alert.alert('Permission Required', 'Microphone permission is required to record audio.');
       return;
     }
 
@@ -258,21 +246,17 @@ export function AudioRecorder({
   };
 
   const handleDeleteRecording = () => {
-    Alert.alert(
-      'Delete Recording',
-      'Are you sure you want to delete this recording?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            setRecordingUri(null);
-            setDuration(0);
-          },
+    Alert.alert('Delete Recording', 'Are you sure you want to delete this recording?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          setRecordingUri(null);
+          setDuration(0);
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleSaveRecording = () => {
@@ -285,17 +269,13 @@ export function AudioRecorder({
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     const centisecs = Math.floor((seconds % 1) * 100);
-    return `${mins}:${secs.toString().padStart(2, '0')}.${centisecs
-      .toString()
-      .padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, '0')}.${centisecs.toString().padStart(2, '0')}`;
   };
 
   if (!permissionGranted) {
     return (
-      <View
-        style={[styles.container, { backgroundColor: secondaryColor }, style]}
-      >
-        <Text variant='body' style={{ color: textColor, textAlign: 'center' }}>
+      <View style={[styles.container, { backgroundColor: secondaryColor }, style]}>
+        <Text variant="body" style={{ color: textColor, textAlign: 'center' }}>
           Microphone permission is required to record audio.
         </Text>
       </View>
@@ -303,9 +283,7 @@ export function AudioRecorder({
   }
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: secondaryColor }, style]}
-    >
+    <View style={[styles.container, { backgroundColor: secondaryColor }, style]}>
       {recordingUri && !isRecording ? (
         <View style={{ alignItems: 'center' }}>
           <AudioPlayer
@@ -317,8 +295,8 @@ export function AudioRecorder({
           />
           <View style={styles.playbackControls}>
             <Button
-              variant='outline'
-              size='icon'
+              variant="outline"
+              size="icon"
               onPress={handleDeleteRecording}
               style={styles.controlButton}
             >
@@ -326,11 +304,11 @@ export function AudioRecorder({
             </Button>
 
             <Button
-              variant='default'
+              variant="default"
               onPress={handleSaveRecording}
               style={[styles.saveButton, { backgroundColor: greenColor }]}
             >
-              <Download size={20} color='white' />
+              <Download size={20} color="white" />
               <Text style={{ color: 'white', marginLeft: 8 }}>Save</Text>
             </Button>
           </View>
@@ -342,10 +320,7 @@ export function AudioRecorder({
             <View style={styles.recordingStatus}>
               <View style={styles.recordingIndicator}>
                 <Circle size={8} color={redColor} fill={redColor} />
-                <Text
-                  variant='caption'
-                  style={{ color: redColor, marginLeft: 8 }}
-                >
+                <Text variant="caption" style={{ color: redColor, marginLeft: 8 }}>
                   Recording
                 </Text>
               </View>
@@ -374,7 +349,7 @@ export function AudioRecorder({
           {showTimer && (
             <View style={styles.timerContainer}>
               <Text
-                variant='title'
+                variant="title"
                 style={{
                   color: isRecording ? redColor : textColor,
                   fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -383,7 +358,7 @@ export function AudioRecorder({
                 {formatTime(duration)}
               </Text>
               {maxDuration && (
-                <Text variant='caption' style={{ color: mutedColor }}>
+                <Text variant="caption" style={{ color: mutedColor }}>
                   Max: {formatTime(maxDuration)}
                 </Text>
               )}
@@ -395,24 +370,24 @@ export function AudioRecorder({
             {!isRecording && !recordingUri && (
               <Animated.View style={animatedRecordButtonStyle}>
                 <Button
-                  variant='default'
-                  size='lg'
+                  variant="default"
+                  size="lg"
                   onPress={handleStartRecording}
                   style={[styles.recordButton, { backgroundColor: redColor }]}
                 >
-                  <Mic size={32} color='white' />
+                  <Mic size={32} color="white" />
                 </Button>
               </Animated.View>
             )}
 
             {isRecording && (
               <Button
-                variant='default'
-                size='lg'
+                variant="default"
+                size="lg"
                 onPress={handleStopRecording}
                 style={[styles.stopButton, { backgroundColor: redColor }]}
               >
-                <Square size={32} fill='white' color='white' />
+                <Square size={32} fill="white" color="white" />
               </Button>
             )}
           </View>

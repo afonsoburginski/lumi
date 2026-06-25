@@ -46,11 +46,7 @@ interface AvatarFallbackProps {
   textStyle?: TextStyle;
 }
 
-export function AvatarFallback({
-  children,
-  style,
-  textStyle,
-}: AvatarFallbackProps) {
+export function AvatarFallback({ children, style, textStyle }: AvatarFallbackProps) {
   const mutedColor = useColor('muted');
   const mutedForegroundColor = useColor('mutedForeground');
 

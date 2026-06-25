@@ -124,7 +124,11 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
   const renderPage = useCallback(
     ({ item }: { item: StoryPage }) => (
       <Pressable onPress={toggleChrome} style={{ width, height }}>
-        <ImageBackground source={{ uri: item.imageUri }} style={styles.pageImage} resizeMode="cover">
+        <ImageBackground
+          source={{ uri: item.imageUri }}
+          style={styles.pageImage}
+          resizeMode="cover"
+        >
           <LinearGradient
             colors={['transparent', 'rgba(30,27,46,0.15)', 'rgba(30,27,46,0.92)']}
             style={StyleSheet.absoluteFill}
@@ -179,7 +183,10 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
       {/* ---- CHROME: controles inferiores ---- */}
       {chromeVisible && (
         <Animated.View
-          style={[styles.bottomBar, { opacity: chromeOpacity, paddingBottom: insets.bottom + spacing.md }]}
+          style={[
+            styles.bottomBar,
+            { opacity: chromeOpacity, paddingBottom: insets.bottom + spacing.md },
+          ]}
         >
           <Pressable
             style={styles.scrubberTrack}
@@ -190,13 +197,23 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
           </Pressable>
 
           <View style={styles.transport}>
-            <RoundButton onPress={() => goToPage(currentPage - 1)} accessibilityLabel="Página anterior">
+            <RoundButton
+              onPress={() => goToPage(currentPage - 1)}
+              accessibilityLabel="Página anterior"
+            >
               <Icon name={ChevronLeft} color={INK} size={26} />
             </RoundButton>
-            <RoundButton big onPress={togglePlay} accessibilityLabel={isPlaying ? 'Pausar' : 'Tocar'}>
+            <RoundButton
+              big
+              onPress={togglePlay}
+              accessibilityLabel={isPlaying ? 'Pausar' : 'Tocar'}
+            >
               <Icon name={isPlaying ? Pause : Play} color={INK} size={30} />
             </RoundButton>
-            <RoundButton onPress={() => goToPage(currentPage + 1)} accessibilityLabel="Próxima página">
+            <RoundButton
+              onPress={() => goToPage(currentPage + 1)}
+              accessibilityLabel="Próxima página"
+            >
               <Icon name={ChevronRight} color={INK} size={26} />
             </RoundButton>
             <RoundButton onPress={cycleVoice} accessibilityLabel="Trocar voz da narração">
@@ -204,9 +221,7 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
             </RoundButton>
           </View>
 
-          {activeVoice ? (
-            <RNText style={styles.voiceLabel}>Voz: {activeVoice.label}</RNText>
-          ) : null}
+          {activeVoice ? <RNText style={styles.voiceLabel}>Voz: {activeVoice.label}</RNText> : null}
 
           <View style={styles.dots}>
             {story.pages.map((p, i) => (
@@ -390,8 +405,19 @@ const styles = StyleSheet.create({
     marginLeft: -8,
     top: -5,
   },
-  transport: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  voiceLabel: { color: INK, textAlign: 'center', fontSize: 12, marginTop: spacing.sm, opacity: 0.9 },
+  transport: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  voiceLabel: {
+    color: INK,
+    textAlign: 'center',
+    fontSize: 12,
+    marginTop: spacing.sm,
+    opacity: 0.9,
+  },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.md },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
   dotActive: { backgroundColor: Colors.light.yellow, width: 22 },

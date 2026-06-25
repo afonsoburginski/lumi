@@ -62,12 +62,7 @@ const Bar = React.memo(
 
     const animatedStyle = useAnimatedStyle(() => {
       return {
-        height: interpolate(
-          animatedValue.value,
-          [0, 1],
-          [4, height * 0.9],
-          'clamp'
-        ),
+        height: interpolate(animatedValue.value, [0, 1], [4, height * 0.9], 'clamp'),
       };
     });
 
@@ -83,10 +78,10 @@ const Bar = React.memo(
             }),
             withTiming(value * (0.9 + Math.random() * 0.2), {
               duration: randomDuration,
-            })
+            }),
           ),
           -1,
-          true
+          true,
         );
       } else {
         // Animate to the new static value
@@ -107,15 +102,14 @@ const Bar = React.memo(
           styles.bar,
           {
             width,
-            backgroundColor:
-              isActive || !showProgress ? activeColor : inactiveColor,
+            backgroundColor: isActive || !showProgress ? activeColor : inactiveColor,
             opacity,
           },
           animatedStyle,
         ]}
       />
     );
-  }
+  },
 );
 
 export function AudioWaveform({
@@ -143,10 +137,7 @@ export function AudioWaveform({
   const finalInactiveColor = inactiveColor || mutedColor;
 
   // FIX: This now just memoizes the raw data array, not an array of hooks.
-  const waveformData = useMemo(
-    () => data || generateSampleWaveform(barCount),
-    [data, barCount]
-  );
+  const waveformData = useMemo(() => data || generateSampleWaveform(barCount), [data, barCount]);
 
   const totalWidth = barCount * barWidth + (barCount - 1) * barGap;
 
@@ -190,9 +181,7 @@ export function AudioWaveform({
           {waveformData.map((value, index) => {
             const progressRatio = progress / 100;
             const barProgress = (index + 0.5) / barCount;
-            const isActive = showProgress
-              ? barProgress <= progressRatio
-              : false;
+            const isActive = showProgress ? barProgress <= progressRatio : false;
 
             let opacity = 1;
             if (showProgress && barProgress > progressRatio) {
@@ -253,10 +242,7 @@ function generateSampleWaveform(barCount: number): number[] {
     const noise = (Math.random() - 0.5) * 0.2;
     const base = 0.4;
     const peak = Math.random() < 0.1 ? Math.random() * 0.3 : 0;
-    return Math.max(
-      0.1,
-      Math.min(0.95, base + wave1 + wave2 + wave3 + noise + peak)
-    );
+    return Math.max(0.1, Math.min(0.95, base + wave1 + wave2 + wave3 + noise + peak));
   });
 }
 

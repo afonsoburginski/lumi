@@ -33,9 +33,7 @@ export default function ExploreScreen() {
       {results.map((s) => (
         <StoryCard key={s.id} story={s} />
       ))}
-      {results.length === 0 ? (
-        <Text variant="caption">Nada encontrado para “{q}”.</Text>
-      ) : null}
+      {results.length === 0 ? <Text variant="caption">Nada encontrado para “{q}”.</Text> : null}
     </Screen>
   );
 }

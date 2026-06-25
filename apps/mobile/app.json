@@ -30,6 +30,9 @@
         }
       ],
       "expo-router"
-    ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

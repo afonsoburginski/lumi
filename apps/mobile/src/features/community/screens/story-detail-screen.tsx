@@ -52,7 +52,12 @@ export default function StoryDetail() {
   const submitComment = () => {
     if (!comment.trim()) return;
     gate('comment', () => {
-      const res = addComment(story.id, user?.id ?? 'guest', user?.name ?? 'Família', comment.trim());
+      const res = addComment(
+        story.id,
+        user?.id ?? 'guest',
+        user?.name ?? 'Família',
+        comment.trim(),
+      );
       if (res.ok) {
         setComment('');
         setError(null);
@@ -109,7 +114,11 @@ export default function StoryDetail() {
                 accessibilityLabel={`Avaliar com ${n} estrelas`}
                 hitSlop={6}
               >
-                <Icon name={Star} size={26} color={n <= Math.round(rating) ? '#FFB84C' : '#C9C4DA'} />
+                <Icon
+                  name={Star}
+                  size={26}
+                  color={n <= Math.round(rating) ? '#FFB84C' : '#C9C4DA'}
+                />
               </Pressable>
             ))}
             <Text variant="caption" style={{ marginLeft: spacing.sm }}>
@@ -129,7 +138,12 @@ export default function StoryDetail() {
             containerStyle={{ marginBottom: spacing.sm }}
           />
           {error ? (
-            <Text variant="caption" lightColor="#FF6B6B" darkColor="#FF6B6B" style={{ marginBottom: spacing.sm }}>
+            <Text
+              variant="caption"
+              lightColor="#FF6B6B"
+              darkColor="#FF6B6B"
+              style={{ marginBottom: spacing.sm }}
+            >
               {error}
             </Text>
           ) : null}

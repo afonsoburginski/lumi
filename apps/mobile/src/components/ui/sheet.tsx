@@ -73,16 +73,9 @@ const useSheet = () => {
   return context;
 };
 
-export function Sheet({
-  open,
-  onOpenChange,
-  side = 'right',
-  children,
-}: SheetProps) {
+export function Sheet({ open, onOpenChange, side = 'right', children }: SheetProps) {
   return (
-    <SheetContext.Provider value={{ open, onOpenChange, side }}>
-      {children}
-    </SheetContext.Provider>
+    <SheetContext.Provider value={{ open, onOpenChange, side }}>{children}</SheetContext.Provider>
   );
 }
 
@@ -135,16 +128,12 @@ export function SheetContent({ children, style }: SheetContentProps) {
       overlayOpacity.value = withTiming(1, { duration: 300 });
     } else if (isVisible) {
       // Animate out, then hide modal in the callback
-      translateX.value = withTiming(
-        initialPosition,
-        { duration: 250 },
-        (finished) => {
-          if (finished) {
-            // Use runOnJS to update React state from the UI thread
-            runOnJS(setIsVisible)(false);
-          }
+      translateX.value = withTiming(initialPosition, { duration: 250 }, (finished) => {
+        if (finished) {
+          // Use runOnJS to update React state from the UI thread
+          runOnJS(setIsVisible)(false);
         }
-      );
+      });
       overlayOpacity.value = withTiming(0, { duration: 250 });
     }
   }, [open, side, sheetWidth]); // Rerun if these change
@@ -175,7 +164,7 @@ export function SheetContent({ children, style }: SheetContentProps) {
     <Modal
       visible={isVisible}
       transparent={true}
-      animationType='none'
+      animationType="none"
       onRequestClose={handleClose}
       statusBarTranslucent={true}
     >
@@ -231,7 +220,7 @@ export function SheetHeader({ children, style }: SheetHeaderProps) {
 
 export function SheetTitle({ children }: SheetTitleProps) {
   return (
-    <Text variant='title' style={styles.title}>
+    <Text variant="title" style={styles.title}>
       {children}
     </Text>
   );
@@ -240,9 +229,7 @@ export function SheetTitle({ children }: SheetTitleProps) {
 export function SheetDescription({ children }: SheetDescriptionProps) {
   const mutedColor = useColor('textMuted');
 
-  return (
-    <Text style={[styles.description, { color: mutedColor }]}>{children}</Text>
-  );
+  return <Text style={[styles.description, { color: mutedColor }]}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({
