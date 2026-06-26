@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -14,7 +14,13 @@ import { gradients, radius, shadow, spacing } from '@/theme/tokens';
 import { Colors } from '@/theme/colors';
 import type { Story } from '@/types/domain';
 
-export function StoryCard({ story }: { story: Story }) {
+interface StoryCardProps {
+  story: Story;
+  /** Habilita long-press → Alert de confirmação para excluir. Use só na aba "Minhas". */
+  onDelete?: () => void;
+}
+
+export function StoryCard({ story, onDelete }: StoryCardProps) {
   const router = useRouter();
   const { gate } = useGate();
   const cover = story.coverColors ?? gradients.brand;
@@ -28,9 +34,27 @@ export function StoryCard({ story }: { story: Story }) {
     gate('read', () => router.push(`/player/${story.id}`));
   };
 
+  const onLongPress = onDelete
+    ? () => {
+        if (process.env.EXPO_OS === 'ios')
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Alert.alert(
+          'Excluir história?',
+          `"${story.title}" será removida da sua biblioteca.`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Excluir', style: 'destructive', onPress: onDelete },
+          ],
+          { cancelable: true },
+        );
+      }
+    : undefined;
+
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
       onPressIn={() => {
         scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
       }}
@@ -39,6 +63,7 @@ export function StoryCard({ story }: { story: Story }) {
       }}
       accessibilityRole="button"
       accessibilityLabel={`Ler ${story.title}`}
+      accessibilityHint={onDelete ? 'Toque longo para excluir' : undefined}
       style={{ marginBottom: spacing.md }}
     >
       <Animated.View style={[styles.card, animatedStyle]}>

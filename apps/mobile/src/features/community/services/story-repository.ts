@@ -62,6 +62,10 @@ export async function rateStoryRemote(storyId: string, stars: number): Promise<v
   });
 }
 
+export async function deleteStoryRemote(storyId: string): Promise<void> {
+  await apiFetch(`/stories/${storyId}`, { method: 'DELETE' });
+}
+
 export async function publishStoryRemote(story: Story): Promise<void> {
   await apiFetch('/stories', {
     method: 'POST',

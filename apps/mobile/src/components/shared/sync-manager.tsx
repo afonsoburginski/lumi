@@ -1,7 +1,6 @@
 // Registra os handlers do outbox (efeito colateral do import) e dispara o flush
 // sempre que a conectividade volta a ficar online. Componente sem UI.
 import '@/features/community/services/sync-handlers';
-import '@/features/narration-voice/services/voice-sync-handlers';
 import { useEffect } from 'react';
 
 import { useConnectivity } from '@/lib/net/connectivity';

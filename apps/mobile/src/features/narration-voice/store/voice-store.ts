@@ -1,92 +1,33 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { DEFAULT_VOICE_ID, VOICE_PRESETS, type VoicePresetDef } from '@lumi/shared';
 
 import { zustandStorage } from '@/lib/storage';
-import { uid } from '@/lib/id';
-import { isOnline } from '@/lib/net/connectivity';
-import { useSync } from '@/lib/services/sync';
-import type { VoiceProfile } from '@/types/domain';
 
-/** Presets de voz de IA (offline: disponíveis como rótulos). */
-export const VOICE_PRESETS: VoiceProfile[] = [
-  {
-    id: 'preset-epico',
-    ownerId: 'system',
-    type: 'preset',
-    label: '🎙️ Narrador Épico',
-    providerVoiceId: 'epic',
-    status: 'ready',
-    createdAt: 0,
-  },
-  {
-    id: 'preset-fada',
-    ownerId: 'system',
-    type: 'preset',
-    label: '🧚 Fada',
-    providerVoiceId: 'fairy',
-    status: 'ready',
-    createdAt: 0,
-  },
-  {
-    id: 'preset-vovo',
-    ownerId: 'system',
-    type: 'preset',
-    label: '👴 Vovô',
-    providerVoiceId: 'grandpa',
-    status: 'ready',
-    createdAt: 0,
-  },
-];
-
+/**
+ * Vozes de narração: catálogo de presets profissionais (ElevenLabs + Gemini),
+ * definido em @lumi/shared/voices. Sem clonagem (removida). O servidor roteia
+ * cada preset ao seu provider.
+ */
 interface VoiceState {
-  cloned: VoiceProfile[];
   selectedVoiceId: string;
-  allVoices: () => VoiceProfile[];
+  allVoices: () => VoicePresetDef[];
   select: (id: string) => void;
-  /** inicia clonagem (offline: fica 'processing' + outbox; online idem até backend) */
-  addClonedVoice: (
-    ownerId: string,
-    label: string,
-    consent: boolean,
-    samplesBase64?: string[],
-  ) => VoiceProfile;
-  /** atualiza a voz clonada quando o backend conclui (chamado pelo sync handler) */
-  markCloned: (id: string, providerVoiceId: string) => void;
 }
 
 export const useVoice = create<VoiceState>()(
   persist(
-    (set, get) => ({
-      cloned: [],
-      selectedVoiceId: 'preset-fada',
-      // Clonagem desabilitada por ora (ElevenLabs free não clona) — só presets.
-      // Reativar: `[...VOICE_PRESETS, ...get().cloned]` quando houver upgrade.
-      allVoices: () => [...VOICE_PRESETS],
+    (set) => ({
+      selectedVoiceId: DEFAULT_VOICE_ID,
+      allVoices: () => VOICE_PRESETS,
       select: (id) => set({ selectedVoiceId: id }),
-      addClonedVoice: (ownerId, label, consent, samplesBase64 = []) => {
-        const profile: VoiceProfile = {
-          id: uid('voice_'),
-          ownerId,
-          type: 'cloned',
-          label,
-          providerVoiceId: 'pending',
-          // offline-first: sem rede, marcamos pronto localmente (usa fallback de preset);
-          // com rede, fica processando até o provider concluir.
-          status: isOnline() ? 'processing' : 'ready',
-          consent,
-          createdAt: Date.now(),
-        };
-        set((st) => ({ cloned: [profile, ...st.cloned], selectedVoiceId: profile.id }));
-        useSync.getState().enqueue('clone_voice', { id: profile.id, label, samplesBase64 });
-        return profile;
-      },
-      markCloned: (id, providerVoiceId) =>
-        set((st) => ({
-          cloned: st.cloned.map((v) =>
-            v.id === id ? { ...v, providerVoiceId, status: 'ready' } : v,
-          ),
-        })),
     }),
-    { name: 'lumi-voice', storage: zustandStorage },
+    {
+      name: 'lumi-voice',
+      storage: zustandStorage,
+      version: 2,
+      // v2: catálogo de presets profissionais (sem clonagem) — reseta a seleção antiga.
+      migrate: () => ({ selectedVoiceId: DEFAULT_VOICE_ID }),
+    },
   ),
 );

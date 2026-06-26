@@ -25,6 +25,7 @@ export default function LibraryScreen() {
   const favorites = useLibrary((s) => s.favorites);
   const collections = useLibrary((s) => s.collections);
   const createCollection = useLibrary((s) => s.createCollection);
+  const deleteStory = useLibrary((s) => s.deleteStory);
   const community = useCommunity((s) => s.stories);
 
   const [tab, setTab] = useState<Tab>('stories');
@@ -60,7 +61,9 @@ export default function LibraryScreen() {
 
       {tab === 'stories' &&
         (myStories.length ? (
-          myStories.map((s) => <StoryCard key={s.id} story={s} />)
+          myStories.map((s) => (
+            <StoryCard key={s.id} story={s} onDelete={() => deleteStory(s.id)} />
+          ))
         ) : (
           <EmptyState
             title="Sua estante está vazia"

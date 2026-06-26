@@ -6,6 +6,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import {
+  useFonts,
+  Lora_400Regular,
+  Lora_500Medium,
+  Lora_600SemiBold,
+  Lora_700Bold,
+  Lora_400Regular_Italic,
+} from '@expo-google-fonts/lora';
 
 import { ThemeProvider } from '@/theme/theme-provider';
 import { OfflineBanner } from '@/components/shared/offline-banner';
@@ -18,6 +26,16 @@ export default function RootLayout() {
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
   }, []);
+
+  // Serif literária (Lora) para a leitura estilo livro.
+  const [fontsLoaded] = useFonts({
+    Lora_400Regular,
+    Lora_500Medium,
+    Lora_600SemiBold,
+    Lora_700Bold,
+    Lora_400Regular_Italic,
+  });
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -36,7 +54,6 @@ export default function RootLayout() {
               <Stack.Screen name="collection/[id]" options={{ presentation: 'card' }} />
               <Stack.Screen name="auth-prompt" options={{ presentation: 'modal' }} />
               <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="voice-clone" options={{ presentation: 'modal' }} />
             </Stack>
             <SyncManager />
             <OfflineBanner />

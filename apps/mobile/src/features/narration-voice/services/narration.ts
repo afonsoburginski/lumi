@@ -36,6 +36,16 @@ export async function fetchNarration(
   voiceId: string,
   cacheKey?: string,
 ): Promise<RemoteNarration> {
+  // Cache: se já sintetizamos essa página, reusa o arquivo (offline + sem custo).
+  if (cacheKey) {
+    const dir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+    for (const ext of ['wav', 'mp3'] as const) {
+      const cached = `${dir}narration-${cacheKey}.${ext}`;
+      const info = await FileSystem.getInfoAsync(cached);
+      if (info.exists) return { audioUri: cached, wordTimings: [], durationMs: 0 };
+    }
+  }
+
   const data = await apiFetch<SynthesizeResponse>('/voice/synthesize', {
     method: 'POST',
     body: JSON.stringify({ text, voiceId }),

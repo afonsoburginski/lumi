@@ -21,6 +21,8 @@ interface CommunityState {
   ratings: Rating[];
 
   addStory: (s: Story) => void;
+  /** Remove uma história do feed e limpa likes/comments/ratings locais. */
+  removeStory: (id: string) => void;
   /** Hidrata o feed com dados do servidor (upsert por id), preservando locais. */
   mergeRemote: (remote: Story[]) => void;
   getById: (id: string) => Story | undefined;
@@ -54,6 +56,13 @@ export const useCommunity = create<CommunityState>()(
             ? { stories: st.stories.map((x) => (x.id === s.id ? s : x)) }
             : { stories: [s, ...st.stories] },
         ),
+      removeStory: (id) =>
+        set((st) => ({
+          stories: st.stories.filter((s) => s.id !== id),
+          likedByMe: st.likedByMe.filter((sid) => sid !== id),
+          comments: st.comments.filter((c) => c.storyId !== id),
+          ratings: st.ratings.filter((r) => r.storyId !== id),
+        })),
       mergeRemote: (remote) =>
         set((st) => {
           const byId = new Map(st.stories.map((s) => [s.id, s]));
@@ -124,6 +133,16 @@ export const useCommunity = create<CommunityState>()(
         return rs.reduce((a, r) => a + r.stars, 0) / rs.length;
       },
     }),
-    { name: 'lumi-community', storage: zustandStorage, version: 1 },
+    {
+      name: 'lumi-community',
+      storage: zustandStorage,
+      version: 2,
+      // v2: troca os seeds mock pela história-showcase real (Catarina). Mantém
+      // curtidas/comentários/avaliações.
+      migrate: (persisted) => ({
+        ...((persisted as object | null) ?? {}),
+        stories: buildSeedStories(),
+      }),
+    },
   ),
 );

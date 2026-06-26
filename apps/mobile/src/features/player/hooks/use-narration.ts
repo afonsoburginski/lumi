@@ -2,59 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 
-import * as speech from '@/features/narration-voice/services/speech';
+import { fetchNarration } from '@/features/narration-voice/services/narration';
+import { config } from '@/config';
 import type { StoryPage, WordTiming } from '@/types/domain';
 
 /**
- * Controller de narração compartilhado pelos dois players.
- * - Caminho A (premium): se a página tem `audioUri` (áudio pré-gerado pelo Gemini
- *   e cacheado), toca com expo-audio; karaokê proporcional à duração real.
- * - Caminho B (fallback): expo-speech on-device (offline / sem áudio), com
- *   `onBoundary` p/ karaokê e timer estimado de segurança.
- * Em ambos há um "respiro" entre páginas (crianças) antes do auto-avanço.
+ * Controller de narração — SÓ voz profissional (ElevenLabs/Gemini via API).
+ * Toca o áudio pré-gerado da página (`audioUri`) ou busca sob demanda quando há
+ * backend; cacheia. Sem expo-speech (nada de voz robótica). Karaokê proporcional
+ * à duração real do áudio + "respiro" entre páginas antes do auto-avanço.
  */
 
-const MS_PER_WORD = 360;
-const TICK_MS = 50;
-const EMPTY_PAGE_MS = 700;
-const SAFETY_MS = 4000;
-const PAGE_PAUSE_MS = 1200; // respiro entre páginas antes de virar
+const MS_PER_WORD = 380; // estimativa só p/ o scrubber antes do áudio carregar
+const PAGE_PAUSE_MS = 1200;
 
-interface Word {
-  word: string;
-  charStart: number;
-  startMs: number;
-  endMs: number;
-}
-
-function buildWords(text: string): Word[] {
-  const out: Word[] = [];
-  const re = /\S+/g;
-  let m: RegExpExecArray | null;
-  let i = 0;
-  while ((m = re.exec(text)) !== null) {
-    out.push({ word: m[0], charStart: m.index, startMs: i * MS_PER_WORD, endMs: (i + 1) * MS_PER_WORD });
-    i++;
-  }
-  return out;
-}
-
-function indexAtChar(words: Word[], charIndex: number): number {
-  let idx = 0;
-  for (let i = 0; i < words.length; i++) {
-    if (words[i].charStart <= charIndex) idx = i;
-    else break;
-  }
-  return idx;
-}
-
-function indexAtMs(words: Word[], ms: number): number {
-  let idx = 0;
-  for (let i = 0; i < words.length; i++) {
-    if (words[i].startMs <= ms) idx = i;
-    else break;
-  }
-  return idx;
+function splitWords(text: string): string[] {
+  return text.split(/\s+/).filter(Boolean);
 }
 
 export interface NarrationOptions {
@@ -64,6 +27,7 @@ export interface NarrationOptions {
 
 export interface Narration {
   isPlaying: boolean;
+  preparing: boolean;
   positionMs: number;
   durationMs: number;
   activeWordIndex: number;
@@ -75,29 +39,21 @@ export interface Narration {
 export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOptions = {}): Narration {
   const { autoPlay = true, onFinished } = opts;
 
-  const words = useMemo(() => buildWords(page.text), [page.text]);
+  const words = useMemo(() => splitWords(page.text), [page.text]);
   const wordTimings = useMemo<WordTiming[]>(
-    () => words.map((w) => ({ word: w.word, startMs: w.startMs, endMs: w.endMs })),
+    () => words.map((w, i) => ({ word: w, startMs: i * MS_PER_WORD, endMs: (i + 1) * MS_PER_WORD })),
     [words],
   );
-  const speechDuration = words.length > 0 ? words.length * MS_PER_WORD : EMPTY_PAGE_MS;
+  const estDuration = Math.max(words.length * MS_PER_WORD, 1500);
 
-  // ---- Áudio premium (pré-gerado + cacheado) ----
-  const hasAudio = Boolean(page.audioUri);
-  const audioPlayer = useAudioPlayer(page.audioUri ? { uri: page.audioUri } : null);
-  const audioStatus = useAudioPlayerStatus(audioPlayer);
+  const [lazyUri, setLazyUri] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const effectiveUri = page.audioUri ?? lazyUri;
+  const shouldLazy = !page.audioUri && !config.useMocks;
 
-  const [isPlaying, setIsPlaying] = useState(autoPlay);
-  const [positionMs, setPositionMs] = useState(0);
-  const [activeWordIndex, setActiveWordIndex] = useState(-1);
+  const player = useAudioPlayer(effectiveUri ? { uri: effectiveUri } : null);
+  const status = useAudioPlayerStatus(player);
 
-  const utterance = useRef(0);
-  const boundaryFired = useRef(false);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const elapsed = useRef(0);
-  const posRef = useRef(0);
-  const activeRef = useRef(-1);
-  const playingRef = useRef(autoPlay);
   const finishedRef = useRef(false);
   const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onFinishedRef = useRef(onFinished);
@@ -105,21 +61,11 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
     onFinishedRef.current = onFinished;
   });
 
-  const clearTick = () => {
-    if (tickRef.current) clearInterval(tickRef.current);
-    tickRef.current = null;
-  };
   const clearPauseTimer = () => {
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
     pauseTimer.current = null;
   };
 
-  const setPlaying = (v: boolean) => {
-    playingRef.current = v;
-    setIsPlaying(v);
-  };
-
-  // Avanço com respiro entre páginas (uma vez por página).
   const finishWithPause = useCallback(() => {
     if (finishedRef.current) return;
     finishedRef.current = true;
@@ -127,192 +73,91 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
     pauseTimer.current = setTimeout(() => onFinishedRef.current?.(), PAGE_PAUSE_MS);
   }, []);
 
-  /* ===================== Caminho B: expo-speech ===================== */
-
-  const finishSpeech = useCallback(() => {
-    clearTick();
-    utterance.current++;
-    speech.stop();
-    setPlaying(false);
-    posRef.current = speechDuration;
-    setPositionMs(speechDuration);
-    activeRef.current = words.length - 1;
-    setActiveWordIndex(words.length - 1);
-    finishWithPause();
-  }, [words.length, speechDuration, finishWithPause]);
-
-  const startTimer = useCallback(() => {
-    clearTick();
-    tickRef.current = setInterval(() => {
-      elapsed.current += TICK_MS;
-      if (!boundaryFired.current) {
-        posRef.current = elapsed.current;
-        setPositionMs(elapsed.current);
-        const idx = words.length ? indexAtMs(words, elapsed.current) : -1;
-        if (idx !== activeRef.current) {
-          activeRef.current = idx;
-          setActiveWordIndex(idx);
-        }
-        if (elapsed.current >= speechDuration) finishSpeech();
-      } else {
-        posRef.current = Math.min(posRef.current + TICK_MS, speechDuration);
-        setPositionMs(posRef.current);
-        if (elapsed.current >= speechDuration + SAFETY_MS) finishSpeech();
-      }
-    }, TICK_MS);
-  }, [words, speechDuration, finishSpeech]);
-
-  const playSpeech = useCallback(() => {
-    setPlaying(true);
-    elapsed.current = activeRef.current >= 0 ? words[activeRef.current]?.startMs ?? 0 : 0;
-    if (words.length === 0) {
-      startTimer();
-      return;
-    }
-    boundaryFired.current = false;
-    const myId = ++utterance.current;
-    const baseChar = activeRef.current >= 0 ? words[activeRef.current].charStart : 0;
-    speech.speak(page.text.slice(baseChar), voiceId, {
-      onBoundary: (charIndex) => {
-        if (myId !== utterance.current) return;
-        boundaryFired.current = true;
-        const idx = indexAtChar(words, baseChar + charIndex);
-        activeRef.current = idx;
-        setActiveWordIndex(idx);
-        posRef.current = words[idx]?.startMs ?? posRef.current;
-        setPositionMs(posRef.current);
-      },
-      onDone: () => {
-        if (myId !== utterance.current) return;
-        finishSpeech();
-      },
-    });
-    startTimer();
-  }, [words, page.text, voiceId, finishSpeech, startTimer]);
-
-  const pauseSpeech = useCallback(() => {
-    utterance.current++;
-    speech.stop();
-    clearTick();
-    setPlaying(false);
-  }, []);
-
-  /* ===================== Reset + autoplay por página ===================== */
-
+  // Reset + busca da narração ao trocar de página (ou de voz).
   useEffect(() => {
     finishedRef.current = false;
     clearPauseTimer();
-    if (hasAudio) {
-      // o áudio recarrega com o novo source; autoplay tratado no efeito abaixo
-      return () => {
-        clearPauseTimer();
-      };
+    setLazyUri(null);
+
+    let cancelled = false;
+    if (page.audioUri) {
+      setPreparing(false);
+    } else if (shouldLazy) {
+      setPreparing(true);
+      fetchNarration(page.text, voiceId, `lazy-${page.id}-${voiceId}`)
+        .then((r) => {
+          if (cancelled) return;
+          setPreparing(false);
+          if (r.audioUri) setLazyUri(r.audioUri);
+        })
+        .catch(() => {
+          if (!cancelled) setPreparing(false);
+        });
+    } else {
+      setPreparing(false);
     }
-    // caminho expo-speech
-    utterance.current++;
-    speech.stop();
-    clearTick();
-    boundaryFired.current = false;
-    elapsed.current = 0;
-    posRef.current = 0;
-    activeRef.current = -1;
-    setPositionMs(0);
-    setActiveWordIndex(-1);
-    if (autoPlay) playSpeech();
-    else setPlaying(false);
+
     return () => {
-      utterance.current++;
-      speech.stop();
-      clearTick();
+      cancelled = true;
       clearPauseTimer();
     };
-    // só reage à troca de página
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page.id, hasAudio]);
+  }, [page.id, voiceId]);
 
-  // Autoplay do áudio premium quando carrega.
+  // Autoplay quando o áudio carrega.
   useEffect(() => {
-    if (hasAudio && autoPlay && audioStatus.isLoaded && !audioStatus.playing && (audioStatus.currentTime ?? 0) === 0) {
-      audioPlayer.play();
+    if (autoPlay && status.isLoaded && !status.playing && (status.currentTime ?? 0) === 0) {
+      player.play();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAudio, audioStatus.isLoaded]);
+  }, [status.isLoaded, effectiveUri]);
 
-  // Auto-avanço do áudio premium ao terminar.
+  // Auto-avanço ao terminar.
   useEffect(() => {
-    if (hasAudio && audioStatus.didJustFinish) finishWithPause();
+    if (status.didJustFinish) finishWithPause();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAudio, audioStatus.didJustFinish]);
-
-  // Trocar a voz no meio da página (só caminho expo-speech).
-  const voiceRef = useRef(voiceId);
-  useEffect(() => {
-    if (voiceRef.current === voiceId) return;
-    voiceRef.current = voiceId;
-    if (!hasAudio && playingRef.current) {
-      utterance.current++;
-      speech.stop();
-      playSpeech();
-    }
-  }, [voiceId, hasAudio, playSpeech]);
+  }, [status.didJustFinish]);
 
   // Pausa ao mandar o app pro background.
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') return;
-      if (hasAudio) audioPlayer.pause();
-      else if (playingRef.current) pauseSpeech();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s !== 'active' && status.playing) player.pause();
     });
     return () => sub.remove();
-  }, [hasAudio, audioPlayer, pauseSpeech]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  /* ===================== Saída ===================== */
+  const durationMs = (status.duration ?? 0) * 1000 || estDuration;
+  const positionMs = (status.currentTime ?? 0) * 1000;
+  const activeWordIndex =
+    words.length > 0 && durationMs > 0
+      ? Math.min(words.length - 1, Math.floor((positionMs / durationMs) * words.length))
+      : -1;
 
-  if (hasAudio) {
-    const durationMs = (audioStatus.duration ?? 0) * 1000 || speechDuration;
-    const pos = (audioStatus.currentTime ?? 0) * 1000;
-    const idx =
-      words.length > 0 ? Math.min(words.length - 1, Math.floor((pos / Math.max(durationMs, 1)) * words.length)) : -1;
-    return {
-      isPlaying: audioStatus.playing,
-      positionMs: pos,
-      durationMs,
-      activeWordIndex: idx,
-      wordTimings,
-      togglePlay: () => (audioStatus.playing ? audioPlayer.pause() : audioPlayer.play()),
-      seek: (ms: number) => audioPlayer.seekTo(Math.max(0, Math.min(ms, durationMs)) / 1000),
-    };
-  }
+  const togglePlay = useCallback(() => {
+    if (preparing || !effectiveUri) return;
+    if (status.playing) player.pause();
+    else player.play();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preparing, effectiveUri, status.playing]);
 
-  const togglePlay = () => {
-    if (playingRef.current) {
-      pauseSpeech();
-      return;
-    }
-    if (activeRef.current >= words.length - 1 && posRef.current >= speechDuration) {
-      activeRef.current = -1;
-      setActiveWordIndex(-1);
-      posRef.current = 0;
-      setPositionMs(0);
-    }
-    finishedRef.current = false;
-    playSpeech();
+  const seek = useCallback(
+    (ms: number) => {
+      if (!effectiveUri) return;
+      player.seekTo(Math.max(0, Math.min(ms, durationMs)) / 1000);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [effectiveUri, durationMs],
+  );
+
+  return {
+    isPlaying: preparing || status.playing,
+    preparing,
+    positionMs,
+    durationMs,
+    activeWordIndex,
+    wordTimings,
+    togglePlay,
+    seek,
   };
-
-  const seek = (ms: number) => {
-    const clamped = Math.max(0, Math.min(ms, speechDuration));
-    const i = words.length ? indexAtMs(words, clamped) : -1;
-    activeRef.current = i;
-    setActiveWordIndex(i);
-    posRef.current = clamped;
-    setPositionMs(clamped);
-    elapsed.current = clamped;
-    if (playingRef.current) {
-      utterance.current++;
-      speech.stop();
-      playSpeech();
-    }
-  };
-
-  return { isPlaying, positionMs, durationMs: speechDuration, activeWordIndex, wordTimings, togglePlay, seek };
 }

@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 import { zustandStorage } from '@/lib/storage';
 import { uid } from '@/lib/id';
 import { useSync } from '@/lib/services/sync';
+import { useCommunity } from '@/features/community/store/community-store';
 import type { Collection, Story } from '@/types/domain';
 
 /** Biblioteca do usuário: minhas histórias, favoritos e coleções (persistido). */
@@ -14,6 +15,7 @@ interface LibraryState {
 
   addStory: (s: Story) => void;
   publishStory: (id: string) => void;
+  deleteStory: (id: string) => void;
   isFavorite: (id: string) => boolean;
   toggleFavorite: (id: string) => void;
   createCollection: (ownerId: string, title: string, visibility?: 'private' | 'public') => string;
@@ -36,6 +38,22 @@ export const useLibrary = create<LibraryState>()(
           ),
         }));
         useSync.getState().enqueue('publish_story', { id });
+      },
+
+      deleteStory: (id) => {
+        const story = get().myStories.find((s) => s.id === id);
+        set((st) => ({
+          myStories: st.myStories.filter((s) => s.id !== id),
+          favorites: st.favorites.filter((f) => f !== id),
+          collections: st.collections.map((c) => ({
+            ...c,
+            storyIds: c.storyIds.filter((sid) => sid !== id),
+          })),
+        }));
+        useCommunity.getState().removeStory(id);
+        if (story?.isPublic) {
+          useSync.getState().enqueue('delete_story', { id });
+        }
       },
 
       isFavorite: (id) => get().favorites.includes(id),

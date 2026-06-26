@@ -3,10 +3,12 @@ import { registerSyncHandler } from '@/lib/services/sync';
 import { useLibrary } from '@/features/community/store/library-store';
 import {
   commentStoryRemote,
+  deleteStoryRemote,
   likeStoryRemote,
   publishStoryRemote,
   rateStoryRemote,
 } from '@/features/community/services/story-repository';
+import { ApiResponseError } from '@/lib/api/client';
 
 /**
  * Liga o outbox (offline-first) às chamadas reais da API. Só registra quando há
@@ -33,5 +35,16 @@ if (!config.useMocks) {
     const { id } = p as { id: string };
     const story = useLibrary.getState().myStories.find((s) => s.id === id);
     if (story) await publishStoryRemote(story);
+  });
+
+  registerSyncHandler('delete_story', async (p) => {
+    const { id } = p as { id: string };
+    try {
+      await deleteStoryRemote(id);
+    } catch (err) {
+      // Não publicada ou já apagada no servidor — sucesso pro client.
+      if (err instanceof ApiResponseError && err.status === 404) return;
+      throw err;
+    }
   });
 }
