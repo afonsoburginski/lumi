@@ -55,3 +55,4 @@ apps/*/.env
 # prisma
 node_modules/.prisma/
 apps/*/generated/
+*.pdf

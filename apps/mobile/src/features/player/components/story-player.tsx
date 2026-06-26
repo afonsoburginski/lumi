@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronLeft, ChevronRight, Pause, Play, Volume2 } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Pause, Play, Volume2, X } from 'lucide-react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Icon } from '@/components/ui/icon';
@@ -22,7 +22,6 @@ import { Colors, withOpacity } from '@/theme/colors';
 import { radius, spacing } from '@/theme/tokens';
 import type { Story, StoryPage } from '@/types/domain';
 
-import { HoldToClose } from './hold-to-close';
 
 import { KaraokeText } from './karaoke-text';
 import { RoundButton } from './round-button';
@@ -175,7 +174,9 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
           pointerEvents="box-none"
           style={[styles.topBar, { opacity: chromeOpacity, paddingTop: insets.top + spacing.sm }]}
         >
-          <HoldToClose onClose={onClose} />
+          <RoundButton onPress={onClose} accessibilityLabel="Fechar leitura">
+            <Icon name={X} color={INK} size={22} />
+          </RoundButton>
           <View style={styles.pageCounter}>
             <RNText style={styles.pageCounterText}>
               {currentPage + 1} / {story.pages.length}

@@ -1,6 +1,8 @@
 // @lumi/shared/voices — catálogo de vozes de narração (presets profissionais).
 // Usado pelo app (lista do seletor) e pela API (roteia cada preset ao provider).
-// "Casa" ElevenLabs (vozes profissionais PT-BR) + Gemini TTS (variedade + limite maior).
+// Gemini TTS funciona já; ElevenLabs exige tier pago (free retorna 402) — quando
+// houver upgrade, esses presets passam a tocar a voz real (sem mudar código);
+// até lá, o roteador cai no Gemini automaticamente.
 
 export type VoiceVendor = 'elevenlabs' | 'gemini';
 
@@ -13,24 +15,24 @@ export interface VoicePresetDef {
   ref: string;
 }
 
-/** Voz padrão (narradora infantil profissional). */
-export const DEFAULT_VOICE_ID = 'carla';
+/** Voz padrão — uma voz Gemini calorosa (funciona sem upgrade). */
+export const DEFAULT_VOICE_ID = 'gem-sulafat';
 
 export const VOICE_PRESETS: VoicePresetDef[] = [
-  // ElevenLabs — vozes profissionais da conta (PT-BR)
-  { id: 'carla', label: '📖 Carla · narradora infantil', vendor: 'elevenlabs', ref: 'oJebhZNaPllxk6W0LSBA' },
-  { id: 'graziella', label: '🧸 Graziella · narradora infantil', vendor: 'elevenlabs', ref: 'iTvRNZPNPS0EiSgOCQG0' },
-  { id: 'amanda', label: '🌷 Amanda · doce e calorosa', vendor: 'elevenlabs', ref: 'oi8rgjIfLgJRsQ6rbZh3' },
-  { id: 'luna', label: '🌙 Luna · calma', vendor: 'elevenlabs', ref: 'jotBQRDYDizrWQAbv9VO' },
-  { id: 'yasmin', label: '🎵 Yasmin · suave e musical', vendor: 'elevenlabs', ref: 'lWq4KDY8znfkV0DrK8Vb' },
-  { id: 'bella', label: '🌟 Bella · brilhante e calorosa', vendor: 'elevenlabs', ref: 'hpp4J3VqNfWAUOO0d1Us' },
-  { id: 'sarah', label: '🤍 Sarah · madura e tranquila', vendor: 'elevenlabs', ref: 'EXAVITQu4vr4xnSDxMaL' },
-  { id: 'roger', label: '👴 Roger · voz grave', vendor: 'elevenlabs', ref: 'CwhRBWXzGAHq8TQ4Fs17' },
-  { id: 'laura', label: '✨ Laura · animada', vendor: 'elevenlabs', ref: 'FGY2WhTYpPnrIDTdsKH5' },
-  // Gemini TTS — variedade + limite maior (fallback quando o ElevenLabs estoura a cota)
-  { id: 'gem-sulafat', label: '🌠 Estrela · calorosa (Gemini)', vendor: 'gemini', ref: 'Sulafat' },
-  { id: 'gem-leda', label: '🧚 Fada · jovem (Gemini)', vendor: 'gemini', ref: 'Leda' },
-  { id: 'gem-charon', label: '🎙️ Contador · épico (Gemini)', vendor: 'gemini', ref: 'Algieba' },
+  // Gemini TTS — funcionam agora (sem custo de assinatura)
+  { id: 'gem-sulafat', label: '🌙 Estrelinha · calorosa', vendor: 'gemini', ref: 'Sulafat' },
+  { id: 'gem-leda', label: '🧚 Fada · jovem', vendor: 'gemini', ref: 'Leda' },
+  { id: 'gem-aoede', label: '🍃 Brisa · leve', vendor: 'gemini', ref: 'Aoede' },
+  { id: 'gem-vindemiatrix', label: '🤍 Aconchego · gentil', vendor: 'gemini', ref: 'Vindemiatrix' },
+  { id: 'gem-achird', label: '😊 Amiguinha · simpática', vendor: 'gemini', ref: 'Achird' },
+  { id: 'gem-algieba', label: '🎙️ Contador · suave', vendor: 'gemini', ref: 'Algieba' },
+  { id: 'gem-charon', label: '📖 Narrador · clássico', vendor: 'gemini', ref: 'Charon' },
+  // ElevenLabs — vozes profissionais da conta (precisam de upgrade pago p/ tocar)
+  { id: 'carla', label: '📖 Carla · infantil (premium)', vendor: 'elevenlabs', ref: 'oJebhZNaPllxk6W0LSBA' },
+  { id: 'graziella', label: '🧸 Graziella · infantil (premium)', vendor: 'elevenlabs', ref: 'iTvRNZPNPS0EiSgOCQG0' },
+  { id: 'amanda', label: '🌷 Amanda · doce (premium)', vendor: 'elevenlabs', ref: 'oi8rgjIfLgJRsQ6rbZh3' },
+  { id: 'yasmin', label: '🎵 Yasmin · musical (premium)', vendor: 'elevenlabs', ref: 'lWq4KDY8znfkV0DrK8Vb' },
+  { id: 'roger', label: '👴 Roger · voz grave (premium)', vendor: 'elevenlabs', ref: 'CwhRBWXzGAHq8TQ4Fs17' },
 ];
 
 export function findVoicePreset(id: string): VoicePresetDef | undefined {

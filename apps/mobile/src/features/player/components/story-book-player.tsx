@@ -20,7 +20,7 @@ import { Image } from 'expo-image';
 import { useAudioPlayer } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import { ChevronLeft, ChevronRight, Pause, Play, Volume2 } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Pause, Play, Volume2, X } from 'lucide-react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Icon } from '@/components/ui/icon';
@@ -29,10 +29,9 @@ import { fonts } from '@/theme/fonts';
 import { spacing } from '@/theme/tokens';
 import type { Story, StoryPage } from '@/types/domain';
 
-import { HoldToClose } from './hold-to-close';
 import { useNarration } from '../hooks/use-narration';
 
-const PAGE_TURN_SOUND = require('../../../../assets/page-turn.wav');
+const PAGE_TURN_SOUND = require('../../../../assets/page-turn.mp3');
 
 interface Props {
   story: Story;
@@ -42,7 +41,6 @@ interface Props {
 
 // Paleta do "livro físico" (espelha o Gemini Storybook).
 const BACKDROP = '#33373F'; // mesa escura atrás do livro
-const BAR = '#22252C'; // barra superior
 const BAR_INK = '#E8E6E1';
 const BAR_MUTED = '#9BA0A8';
 const PAPER = '#F5EFE1'; // papel creme
@@ -134,25 +132,16 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
 
   const showChrome = useCallback(() => {
     setChromeVisible(true);
-    Animated.timing(chromeOpacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+    Animated.timing(chromeOpacity, { toValue: 1, duration: 220, useNativeDriver: true }).start();
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => {
-      Animated.timing(chromeOpacity, { toValue: 0, duration: 350, useNativeDriver: true }).start(
-        () => setChromeVisible(false),
-      );
-    }, 3000);
+      Animated.timing(chromeOpacity, {
+        toValue: 0,
+        duration: 900,
+        useNativeDriver: true,
+      }).start(() => setChromeVisible(false));
+    }, 5500);
   }, [chromeOpacity]);
-
-  const toggleChrome = useCallback(() => {
-    if (chromeVisible) {
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-      Animated.timing(chromeOpacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(
-        () => setChromeVisible(false),
-      );
-    } else {
-      showChrome();
-    }
-  }, [chromeVisible, chromeOpacity, showChrome]);
 
   useEffect(() => {
     showChrome();
@@ -161,15 +150,15 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
     };
   }, [showChrome]);
 
-  // toque: bordas viram a página; centro mostra/esconde a barra
+  // toque: qualquer lugar mostra a barra (auto-hide cuida de esconder); bordas ainda viram a página
   const onTapPage = useCallback(
     (e: GestureResponderEvent) => {
       const x = e.nativeEvent.locationX;
+      showChrome();
       if (x < width * 0.28) goPrev();
       else if (x > width * 0.72) goNext();
-      else toggleChrome();
     },
-    [width, goPrev, goNext, toggleChrome],
+    [width, goPrev, goNext, showChrome],
   );
 
   // ---- animações ----
@@ -185,7 +174,9 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
   const leafShadeStyle = useAnimatedStyle(() => ({ opacity: Math.sin(flip.value * Math.PI) * 0.22 }));
 
   // ---- layout do livro: ocupa o MÁXIMO da tela (a barra fica por cima) ----
-  const barH = insets.top + 44;
+  // barra colada no topo: ignora a maior parte do safe-area (em landscape ele é ~0)
+  const barTopPad = Math.max(insets.top - 8, 0);
+  const barH = barTopPad + 40;
   const m = 8;
   const availH = height - m * 2;
   const availW = width - Math.max(insets.left, insets.right, m) * 2;
@@ -233,10 +224,12 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
       {/* ---- Barra superior (estilo Gemini, auto-hide por cima) ---- */}
       {chromeVisible ? (
         <Animated.View
-          style={[styles.bar, { height: barH, paddingTop: insets.top, opacity: chromeOpacity }]}
+          style={[styles.bar, { height: barH, paddingTop: barTopPad, opacity: chromeOpacity }]}
         >
           <View style={styles.barSide}>
-            <HoldToClose onClose={onClose} />
+            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn} accessibilityLabel="Fechar">
+              <Icon name={X} color={BAR_INK} size={20} />
+            </Pressable>
             <RNText style={styles.title} numberOfLines={1}>
               {story.title}
             </RNText>
@@ -362,6 +355,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   // livro
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -409,18 +410,19 @@ const styles = StyleSheet.create({
   },
 
   // papel
-  paper: { flex: 1, backgroundColor: PAPER, paddingHorizontal: 26, paddingTop: 22, paddingBottom: 16 },
+  paper: { flex: 1, backgroundColor: PAPER, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 10 },
   author: {
     color: INK_SOFT,
     fontFamily: fonts.serifMedium,
-    fontSize: 11,
+    fontSize: 10,
     letterSpacing: 2,
     textAlign: 'right',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   paperScroll: { flex: 1 },
-  paperContent: { flexGrow: 1, justifyContent: 'center' },
-  body: { color: INK, fontFamily: fonts.serif, fontSize: 20, lineHeight: 32 },
-  dropCap: { color: INK, fontFamily: fonts.serifBold, fontSize: 46, lineHeight: 44 },
+  // top-align: garante que TODO o texto apareça (e role se for longo), sem cortar
+  paperContent: { flexGrow: 1, justifyContent: 'flex-start' },
+  body: { color: INK, fontFamily: fonts.serif, fontSize: 18, lineHeight: 25 },
+  dropCap: { color: INK, fontFamily: fonts.serifBold, fontSize: 40, lineHeight: 36 },
   curl: { position: 'absolute', right: 0, bottom: 0 },
 });
