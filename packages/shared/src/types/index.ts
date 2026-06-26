@@ -3,6 +3,9 @@
 
 export type AgeBand = '3-5' | '6-8' | '9-12';
 export type StoryTone = 'calma' | 'divertida' | 'aventura';
+/** Layout do leitor: 'portrait' = player cinematográfico vertical (padrão);
+ *  'landscape' = livrinho horizontal (ilustração grande + texto). */
+export type StoryFormat = 'portrait' | 'landscape';
 
 /** Status do pipeline de moderação (ver docs/mods/safety). */
 export type ModerationStatus = 'pending' | 'approved' | 'rejected' | 'needs_review';
@@ -29,6 +32,8 @@ export interface Story {
   authorName?: string;
   ageBand: AgeBand;
   tone?: StoryTone;
+  /** Formato de leitura. Ausente = 'portrait' (compatível com histórias antigas). */
+  format?: StoryFormat;
   coverColors?: [string, string];
   coverUri?: string;
   pages: StoryPage[];
@@ -120,6 +125,11 @@ export interface ModerationResult {
   categories: ModerationCategory[];
   score: number; // 0..1
   reason?: string;
+}
+
+/** Formato de leitura de uma história, com default seguro para conteúdo antigo. */
+export function storyFormat(s: Pick<Story, 'format'>): StoryFormat {
+  return s.format ?? 'portrait';
 }
 
 /** Faixa etária derivada da idade da criança. */

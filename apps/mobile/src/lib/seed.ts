@@ -1,6 +1,6 @@
 import { synthesize } from '@/features/narration-voice/services/tts';
 import type { AgeBand } from '@/theme/tokens';
-import type { Story, StoryTone } from '@/types/domain';
+import type { Story, StoryFormat, StoryTone } from '@/types/domain';
 
 /**
  * Histórias-semente da comunidade (offline-first: capas em gradiente, sem rede).
@@ -30,6 +30,7 @@ interface SeedSpec {
   colors: [string, string];
   likes: number;
   texts: string[];
+  format?: StoryFormat;
 }
 
 const SPECS: SeedSpec[] = [
@@ -69,6 +70,7 @@ const SPECS: SeedSpec[] = [
     tone: 'divertida',
     colors: ['#4ECDC4', '#6C5CE7'],
     likes: 203,
+    format: 'landscape',
     texts: [
       'Theo dobrou um foguete de papel e sonhou em chegar à Lua.',
       'Soprou com força e o foguete cruzou a sala numa viagem maluca.',
@@ -83,6 +85,7 @@ const SPECS: SeedSpec[] = [
     tone: 'divertida',
     colors: ['#FF7AA2', '#FFB84C'],
     likes: 512,
+    format: 'landscape',
     texts: [
       'Era uma vez um dragão que só queria comer brócolis e morangos.',
       'A vila estranhou, mas logo virou amiga do dragão gentil.',
@@ -99,6 +102,7 @@ export function buildSeedStories(): Story[] {
     authorName: s.authorName,
     ageBand: s.ageBand,
     tone: s.tone,
+    format: s.format ?? 'portrait',
     coverColors: s.colors,
     pages: pages(s.texts),
     moderation: 'approved',

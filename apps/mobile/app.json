@@ -4,12 +4,16 @@
     "slug": "lumi",
     "scheme": "lumi",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.atmansystems.lumi"
+      "requireFullScreen": true,
+      "bundleIdentifier": "com.atmansystems.lumi",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +23,13 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.atmansystems.lumi"
+      "package": "com.atmansystems.lumi",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,10 +41,23 @@
           "microphonePermission": "O Lumi usa o microfone para gravar e clonar a voz que vai narrar suas histórias."
         }
       ],
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT"
+        }
+      ],
       "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "8aed7743-e663-4587-ae22-8aeab8f08a11"
+      }
+    },
+    "owner": "afonso_burginski"
   }
 }

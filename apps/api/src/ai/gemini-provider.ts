@@ -1,13 +1,13 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI, Type } from '@google/genai';
 
 import { env } from '@/env';
 import { PAGES_BY_AGE, type AiProvider, type GeneratedStory, type GenerateStoryInput } from '@/ai/types';
 import type { AgeBand, StoryTone } from '@lumi/shared';
 
 /**
- * Geração de histórias com Claude (claude-opus-4-8). O prompt de sistema reforça
+ * Geração de histórias com Gemini (gemini-2.5-flash). O prompt de sistema reforça
  * segurança infantil (camada 2 do mod safety) e adapta tom/complexidade à faixa.
- * Saída estruturada (JSON Schema) → { title, pages[] }.
+ * Saída estruturada (responseSchema) → { title, pages[] }.
  */
 
 const AGE_GUIDANCE: Record<AgeBand, string> = {
@@ -37,47 +37,41 @@ function systemPrompt(input: GenerateStoryInput): string {
 }
 
 const OUTPUT_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
+  type: Type.OBJECT,
   properties: {
-    title: { type: 'string' },
+    title: { type: Type.STRING },
     pages: {
-      type: 'array',
+      type: Type.ARRAY,
       items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: { text: { type: 'string' } },
+        type: Type.OBJECT,
+        properties: { text: { type: Type.STRING } },
         required: ['text'],
       },
     },
   },
   required: ['title', 'pages'],
-} as const;
+};
 
-export function createAnthropicProvider(): AiProvider {
-  const client = new Anthropic({ apiKey: env.ai.anthropicApiKey });
+export function createGeminiProvider(): AiProvider {
+  const client = new GoogleGenAI({ apiKey: env.ai.geminiApiKey });
 
   return {
-    name: 'anthropic',
+    name: 'gemini',
     async generateStory(input) {
-      const message = await client.messages.create({
+      const response = await client.models.generateContent({
         model: env.ai.model,
-        max_tokens: 4000,
-        system: systemPrompt(input),
-        output_config: { format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
-        messages: [
-          {
-            role: 'user',
-            content: `Crie uma história sobre: ${input.prompt}`,
-          },
-        ],
+        contents: `Crie uma história sobre: ${input.prompt}`,
+        config: {
+          systemInstruction: systemPrompt(input),
+          responseMimeType: 'application/json',
+          responseSchema: OUTPUT_SCHEMA,
+          maxOutputTokens: 4000,
+        },
       });
 
-      const textBlock = message.content.find((b) => b.type === 'text');
-      if (!textBlock || textBlock.type !== 'text') {
-        throw new Error('Resposta da IA sem conteúdo de texto');
-      }
-      return JSON.parse(textBlock.text) as GeneratedStory;
+      const text = response.text;
+      if (!text) throw new Error('Resposta da IA sem conteúdo de texto');
+      return JSON.parse(text) as GeneratedStory;
     },
   };
 }

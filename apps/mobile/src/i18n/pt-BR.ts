@@ -11,7 +11,6 @@ export default {
   },
   tabs: {
     home: 'Início',
-    explore: 'Explorar',
     create: 'Criar',
     library: 'Biblioteca',
     profile: 'Perfil',

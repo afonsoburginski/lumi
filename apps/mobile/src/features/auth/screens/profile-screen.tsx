@@ -2,6 +2,7 @@ import React from 'react';
 import { View as RNView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, Mic, Wifi, WifiOff } from 'lucide-react-native';
+import { useShallow } from 'zustand/react/shallow';
 
 import { Screen } from '@/components/shared/screen';
 import { Text } from '@/components/ui/text';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { SectionTitle } from '@/components/shared/section-title';
 import { useGate } from '@/features/auth/hooks/use-gate';
 import { useAuth } from '@/features/auth/store/auth-store';
 import { useVoice } from '@/features/narration-voice/store/voice-store';
@@ -16,13 +18,17 @@ import { useConnectivity } from '@/lib/net/connectivity';
 import { useSync } from '@/lib/services/sync';
 import { spacing } from '@/theme/tokens';
 
+// Clonagem da voz da família desabilitada por ora (ElevenLabs free não clona).
+// Trocar para true após o upgrade reativa o fluxo de gravação/clonagem.
+const VOICE_CLONING_ENABLED = false;
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { gate } = useGate();
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
 
-  const voices = useVoice((s) => s.allVoices());
+  const voices = useVoice(useShallow((s) => s.allVoices()));
   const selectedVoiceId = useVoice((s) => s.selectedVoiceId);
   const selectVoice = useVoice((s) => s.select);
 
@@ -69,9 +75,7 @@ export default function ProfileScreen() {
       <Separator style={{ marginVertical: spacing.lg }} />
 
       {/* Vozes de narração */}
-      <Text variant="subtitle" style={{ marginBottom: spacing.sm }}>
-        🎙️ Vozes de narração
-      </Text>
+      <SectionTitle icon={Mic}>Vozes de narração</SectionTitle>
       {voices.map((v) => (
         <Card key={v.id} style={{ marginBottom: spacing.sm }}>
           <CardContent style={styles.voiceRow}>
@@ -93,21 +97,21 @@ export default function ProfileScreen() {
           </CardContent>
         </Card>
       ))}
-      <Button
-        icon={Mic}
-        variant="secondary"
-        onPress={() => gate('clone_voice', () => router.push('/voice-clone'))}
-        style={{ marginTop: spacing.xs }}
-      >
-        Gravar a voz da família
-      </Button>
+      {VOICE_CLONING_ENABLED ? (
+        <Button
+          icon={Mic}
+          variant="secondary"
+          onPress={() => gate('clone_voice', () => router.push('/voice-clone'))}
+          style={{ marginTop: spacing.xs }}
+        >
+          Gravar a voz da família
+        </Button>
+      ) : null}
 
       <Separator style={{ marginVertical: spacing.lg }} />
 
       {/* Offline-first: simular conectividade */}
-      <Text variant="subtitle" style={{ marginBottom: spacing.sm }}>
-        Conectividade (demo)
-      </Text>
+      <SectionTitle icon={Wifi}>Conectividade (demo)</SectionTitle>
       <Button
         icon={isOnline ? Wifi : WifiOff}
         variant={isOnline ? 'secondary' : 'destructive'}

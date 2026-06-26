@@ -3,7 +3,7 @@ import { isOnline } from '@/lib/net/connectivity';
 import { moderateText, moderateImage } from '@/features/safety/services/moderation';
 import { synthesize } from '@/features/narration-voice/services/tts';
 import type { AgeBand } from '@/theme/tokens';
-import type { ModerationResult, Story, StoryPage, StoryTone } from '@/types/domain';
+import type { ModerationResult, Story, StoryFormat, StoryPage, StoryTone } from '@/types/domain';
 
 /**
  * Mod story-creation — geração de histórias. MOCK que roda offline: monta uma
@@ -22,6 +22,7 @@ export interface GenerateInput {
   authorName?: string;
   imageUri?: string;
   voiceId?: string;
+  format?: StoryFormat;
 }
 
 export type GenerateResult = { ok: true; story: Story } | { ok: false; blocked: ModerationResult };
@@ -99,6 +100,7 @@ export function generateStory(input: GenerateInput): GenerateResult {
     authorName: input.authorName,
     ageBand: input.ageBand,
     tone: input.tone,
+    format: input.format ?? 'portrait',
     coverColors: COVER_GRADIENTS[input.tone],
     pages,
     // online: revisão de servidor pendente; offline: aprovado localmente

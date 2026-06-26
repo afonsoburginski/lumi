@@ -7,8 +7,9 @@ import { View as TView } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { StarryBackdrop } from '@/components/shared/starry-backdrop';
 import { useColor } from '@/hooks/useColor';
-import { spacing } from '@/theme/tokens';
+import { shadow, spacing } from '@/theme/tokens';
 
 const MESSAGES: Record<string, string> = {
   create: 'Entre para criar suas próprias histórias mágicas ✨',
@@ -35,6 +36,7 @@ export default function AuthPromptModal() {
 
   return (
     <TView style={[styles.root, { backgroundColor: bg }]}>
+      <StarryBackdrop />
       <View style={[styles.icon, { backgroundColor: tint + '22' }]}>
         <Icon name={Sparkles} color={tint} size={36} />
       </View>
@@ -65,6 +67,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
+    ...shadow.soft,
   },
   center: { textAlign: 'center' },
 });

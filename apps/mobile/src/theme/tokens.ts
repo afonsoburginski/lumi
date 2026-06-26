@@ -3,7 +3,6 @@
  * (que define só HEIGHT, FONT_SIZE, BORDER_RADIUS, CORNERS).
  * Cores ficam em `@/theme/colors`.
  */
-import { Colors } from '@/theme/colors';
 
 export const spacing = {
   xs: 4,
@@ -14,9 +13,10 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 12,
-  md: 18,
-  lg: 24,
+  sm: 14,
+  md: 20,
+  lg: 28,
+  xl: 36,
   pill: 999,
 } as const;
 
@@ -28,11 +28,40 @@ export const fontSize = {
   display: 36,
 } as const;
 
-/** Gradientes da marca (usados em capas, CTAs e overlay de leitura). */
+/** Gradientes da marca — derivados da logo (céu, estrela, livro, noite). */
 export const gradients = {
-  brand: [Colors.light.primary, '#A29BFE'] as const,
-  playful: ['#FFB84C', '#FF7AA2'] as const,
-  readability: ['transparent', 'rgba(30,27,46,0.15)', 'rgba(30,27,46,0.92)'] as const,
+  brand: ['#8E7BFF', '#6C5CE7'] as const, // índigo mágico (CTAs)
+  sky: ['#AFD3FF', '#6FA8F5'] as const, // céu de dia
+  night: ['#3A3470', '#181633'] as const, // céu do castelo à noite
+  star: ['#FFE39A', '#FFC44D'] as const, // brilho da estrela
+  dawn: ['#FFD6A5', '#FF9FB6'] as const, // amanhecer aconchegante
+  playful: ['#FFC44D', '#FF8FB1'] as const, // estrela → bochecha
+  readability: ['transparent', 'rgba(24,22,51,0.15)', 'rgba(24,22,51,0.92)'] as const,
+} as const;
+
+/** Sombras suaves e fofas (cards, botões flutuantes) — sensação de "flutuar". */
+export const shadow = {
+  soft: {
+    shadowColor: '#3A3470',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  card: {
+    shadowColor: '#3A3470',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  glow: {
+    shadowColor: '#FFC44D',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    elevation: 6,
+  },
 } as const;
 
 // AgeBand é tipo de domínio — vem de @lumi/shared (re-export por conveniência de import).

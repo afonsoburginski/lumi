@@ -38,7 +38,7 @@ bun run dev                                # API em http://localhost:3333
 ### Chaves opcionais (sem elas, tudo roda em **mock offline**)
 No `apps/api/.env`:
 ```
-ANTHROPIC_API_KEY="sk-ant-..."   # geração de histórias via Claude (claude-opus-4-8)
+GEMINI_API_KEY="AIza..."         # geração de histórias via Gemini (gemini-2.5-flash)
 ELEVENLABS_API_KEY="..."         # TTS + clonagem de voz (com timestamps p/ karaokê)
 ```
 
@@ -63,7 +63,7 @@ Qualidade no mobile: `cd apps/mobile && bun run lint` · `bun run format`.
 ## Arquitetura (resumo)
 - **Mobile:** feature-first (`src/features/<mod>`), estado **Zustand** + persist, dados via **Repository + TanStack Query**, **expo-router** (typed routes), i18n PT-BR, ESLint+Prettier.
 - **Offline-first:** stores persistidos + **escrita otimista** + **outbox** que sincroniza ao voltar online (toggle de conectividade no Perfil para testar).
-- **Providers trocáveis (backend):** IA = **Anthropic Claude**, voz = **ElevenLabs**, imagem = mock (plugue futuro) — todos com fallback mock e selecionados por env.
+- **Providers trocáveis (backend):** IA = **Google Gemini**, voz = **ElevenLabs**, imagem = mock (plugue futuro) — todos com fallback mock e selecionados por env.
 - **Safety-first:** moderação de entrada/saída na geração e nos comentários.
 
 ## Mods (domínios)

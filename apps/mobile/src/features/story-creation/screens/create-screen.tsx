@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Image, StyleSheet, View as RNView } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Check, Sparkles, Wand2 } from 'lucide-react-native';
+import { BookOpen, Cake, Camera, Check, Lightbulb, Palette, Sparkles, Wand2 } from 'lucide-react-native';
 
 import { Screen } from '@/components/shared/screen';
+import { SectionTitle } from '@/components/shared/section-title';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
@@ -19,12 +20,17 @@ import { useVoice } from '@/features/narration-voice/store/voice-store';
 import { createStory } from '@/features/story-creation/services/create-story';
 import { AGE_BANDS } from '@/lib/age';
 import { radius, spacing, type AgeBand } from '@/theme/tokens';
-import type { Story, StoryTone } from '@/types/domain';
+import type { Story, StoryFormat, StoryTone } from '@/types/domain';
 
 const TONES: { key: StoryTone; label: string }[] = [
   { key: 'calma', label: '😴 Calma' },
   { key: 'divertida', label: '🤪 Divertida' },
   { key: 'aventura', label: '🦸 Aventura' },
+];
+
+const FORMATS: { key: StoryFormat; label: string }[] = [
+  { key: 'portrait', label: '📱 Vertical' },
+  { key: 'landscape', label: '📖 Livrinho' },
 ];
 
 type Phase = 'form' | 'generating' | 'preview' | 'blocked';
@@ -44,6 +50,7 @@ export default function CreateScreen() {
   const [imageUri, setImageUri] = useState<string | undefined>();
   const [age, setAge] = useState<AgeBand>(defaultBand);
   const [tone, setTone] = useState<StoryTone>('divertida');
+  const [format, setFormat] = useState<StoryFormat>('portrait');
   const [phase, setPhase] = useState<Phase>('form');
   const [story, setStory] = useState<Story | null>(null);
   const [blockMsg, setBlockMsg] = useState('');
@@ -60,6 +67,7 @@ export default function CreateScreen() {
         prompt,
         ageBand: age,
         tone,
+        format,
         authorId: user?.id ?? 'guest',
         authorName: user?.name,
         imageUri,
@@ -166,7 +174,7 @@ export default function CreateScreen() {
   /* ---------------------- formulário ---------------------- */
   return (
     <Screen title="✨ Criar História">
-      <Text variant="subtitle">Sobre o que é a história?</Text>
+      <SectionTitle icon={Lightbulb}>Sobre o que é a história?</SectionTitle>
       <Input
         multiline
         numberOfLines={3}
@@ -187,9 +195,7 @@ export default function CreateScreen() {
       </Button>
       {imageUri ? <Image source={{ uri: imageUri }} style={styles.preview} /> : null}
 
-      <Text variant="subtitle" style={{ marginTop: spacing.md, marginBottom: spacing.sm }}>
-        Faixa etária
-      </Text>
+      <SectionTitle icon={Cake}>Faixa etária</SectionTitle>
       <RNView style={styles.chips}>
         {AGE_BANDS.map((b) => (
           <Button
@@ -203,9 +209,7 @@ export default function CreateScreen() {
         ))}
       </RNView>
 
-      <Text variant="subtitle" style={{ marginTop: spacing.md, marginBottom: spacing.sm }}>
-        Tom
-      </Text>
+      <SectionTitle icon={Palette}>Tom</SectionTitle>
       <RNView style={styles.chips}>
         {TONES.map((t) => (
           <Button
@@ -218,6 +222,25 @@ export default function CreateScreen() {
           </Button>
         ))}
       </RNView>
+
+      <SectionTitle icon={BookOpen}>Formato</SectionTitle>
+      <RNView style={styles.chips}>
+        {FORMATS.map((f) => (
+          <Button
+            key={f.key}
+            size="sm"
+            variant={format === f.key ? 'default' : 'secondary'}
+            onPress={() => setFormat(f.key)}
+          >
+            {f.label}
+          </Button>
+        ))}
+      </RNView>
+      <Text variant="caption" style={{ marginTop: spacing.xs }}>
+        {format === 'landscape'
+          ? '📖 Livrinho: leitura deitada (horizontal), ilustração grande + texto.'
+          : '📱 Vertical: leitura em pé, imagem na tela toda.'}
+      </Text>
 
       <View style={[styles.safety, { backgroundColor: safetyBg + '22' }]}>
         <Text variant="caption">🛡️ Toda história passa por uma verificação de segurança.</Text>

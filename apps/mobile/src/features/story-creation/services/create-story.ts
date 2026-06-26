@@ -2,10 +2,33 @@ import { config } from '@/config';
 import { uid } from '@/lib/id';
 import { ApiResponseError } from '@/lib/api/client';
 import { synthesize } from '@/features/narration-voice/services/tts';
+import { fetchNarration } from '@/features/narration-voice/services/narration';
 import { generateStory as generateLocal } from '@/features/story-creation/services/generation';
 import { generateViaApi } from '@/features/story-creation/services/generation-repository';
 import type { GenerateInput, GenerateResult } from '@/features/story-creation/services/generation';
 import type { Story } from '@/types/domain';
+
+/**
+ * Pré-gera a narração premium (Gemini TTS) de cada página e cacheia o áudio
+ * (documentDirectory) para tocar offline depois. Em paralelo; falha numa página
+ * apenas deixa essa sem `audioUri` (player cai no expo-speech). Não bloqueia a
+ * criação se a síntese toda falhar.
+ */
+async function preloadNarration(story: Story, voiceId: string): Promise<void> {
+  await Promise.all(
+    story.pages.map(async (page) => {
+      try {
+        const r = await fetchNarration(page.text, voiceId, `${story.id}-${page.id}`);
+        if (r.audioUri) {
+          page.audioUri = r.audioUri;
+          page.wordTimings = r.wordTimings;
+        }
+      } catch {
+        // mantém a página sem áudio → fallback expo-speech
+      }
+    }),
+  );
+}
 
 /**
  * Orquestra a criação de história (offline-first):
@@ -30,6 +53,7 @@ export async function createStory(input: GenerateInput): Promise<GenerateResult>
       authorName: input.authorName,
       ageBand: input.ageBand,
       tone: input.tone,
+      format: input.format ?? 'portrait',
       coverColors: dto.coverColors,
       pages: dto.pages.map((p) => ({
         id: uid('pg_'),
@@ -44,6 +68,8 @@ export async function createStory(input: GenerateInput): Promise<GenerateResult>
       downloaded: true,
       pendingSync: true,
     };
+    // Pré-gera a narração premium por página (não bloqueia se falhar).
+    await preloadNarration(story, input.voiceId ?? 'preset-fada');
     return { ok: true, story };
   } catch (e) {
     // Conteúdo bloqueado pelo safety no servidor (422)

@@ -4,11 +4,11 @@ import { useRouter } from 'expo-router';
 import { FolderPlus } from 'lucide-react-native';
 
 import { Screen } from '@/components/shared/screen';
-import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { StoryCard } from '@/components/shared/story-card';
+import { EmptyState } from '@/components/shared/empty-state';
 import { useGate } from '@/features/auth/hooks/use-gate';
 import { useAuth } from '@/features/auth/store/auth-store';
 import { useLibrary } from '@/features/community/store/library-store';
@@ -62,14 +62,20 @@ export default function LibraryScreen() {
         (myStories.length ? (
           myStories.map((s) => <StoryCard key={s.id} story={s} />)
         ) : (
-          <Text variant="caption">Você ainda não criou histórias. Toque em ✨ Criar!</Text>
+          <EmptyState
+            title="Sua estante está vazia"
+            message="Toque em ✨ Criar e faça a primeira história mágica!"
+          />
         ))}
 
       {tab === 'favorites' &&
         (favStories.length ? (
           favStories.map((s) => <StoryCard key={s.id} story={s} />)
         ) : (
-          <Text variant="caption">Nenhum favorito ainda. Toque no ❤️ de uma história.</Text>
+          <EmptyState
+            title="Sem favoritos ainda"
+            message="Toque no ❤️ de uma história pra guardá-la aqui."
+          />
         ))}
 
       {tab === 'collections' && (
@@ -106,7 +112,7 @@ export default function LibraryScreen() {
               </Card>
             ))
           ) : (
-            <Text variant="caption">Crie coleções para organizar as histórias da família.</Text>
+            <EmptyState message="Crie coleções pra organizar as histórias da família." />
           )}
         </>
       )}

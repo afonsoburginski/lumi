@@ -1,7 +1,6 @@
 /** Caminhos de rota centralizados (expo-router). Evita strings mágicas espalhadas. */
 export const ROUTES = {
   home: '/(tabs)',
-  explore: '/(tabs)/explore',
   create: '/(tabs)/create',
   library: '/(tabs)/library',
   profile: '/(tabs)/profile',

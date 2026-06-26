@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   FlatList,
@@ -13,20 +13,20 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { ChevronLeft, ChevronRight, Pause, Play, Volume2, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Pause, Play, Volume2 } from 'lucide-react-native';
+import { useShallow } from 'zustand/react/shallow';
 
 import { Icon } from '@/components/ui/icon';
 import { useVoice } from '@/features/narration-voice/store/voice-store';
-import { useConnectivity } from '@/lib/net/connectivity';
-import { config } from '@/config';
-import {
-  fetchNarration,
-  type RemoteNarration,
-} from '@/features/narration-voice/services/narration';
 import { Colors, withOpacity } from '@/theme/colors';
 import { radius, spacing } from '@/theme/tokens';
-import type { Story, StoryPage, WordTiming } from '@/types/domain';
+import type { Story, StoryPage } from '@/types/domain';
+
+import { HoldToClose } from './hold-to-close';
+
+import { KaraokeText } from './karaoke-text';
+import { RoundButton } from './round-button';
+import { useNarration } from '../hooks/use-narration';
 
 interface StoryPlayerProps {
   story: Story;
@@ -40,11 +40,9 @@ const HIGHLIGHT = Colors.light.yellow; // realce karaokê
 const OVERLAY = withOpacity('#1E1B2E', 0.55);
 
 /**
- * Player de leitura imersivo (ver docs/specs/mods/player/spec.md).
- * Swipe horizontal, imagem de fundo, texto sobreposto com karaokê e
- * controles de áudio. A reprodução usa áudio real (expo-audio) quando a API
- * retorna narração; offline/sem áudio, cai num timer simulado — tudo isolado
- * no hook `useNarratedPlayback`.
+ * Player de leitura imersivo VERTICAL (formato 'portrait'). Swipe horizontal,
+ * imagem de fundo full-bleed, texto sobreposto com karaokê e controles de
+ * áudio. Narração real via TTS on-device (hook `useNarration`).
  */
 export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPlayerProps) {
   const { width, height } = useWindowDimensions();
@@ -54,12 +52,27 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
   const [currentPage, setCurrentPage] = useState(initialPage);
 
   // Voz da narração (presets + voz clonada da família)
-  const voices = useVoice((s) => s.allVoices());
+  const voices = useVoice(useShallow((s) => s.allVoices()));
   const selectedVoiceId = useVoice((s) => s.selectedVoiceId);
   const selectVoice = useVoice((s) => s.select);
 
-  const { isPlaying, positionMs, durationMs, togglePlay, seek, resetForPage, wordTimings } =
-    useNarratedPlayback(story.pages[currentPage], selectedVoiceId);
+  // ---- Navegação entre páginas ----
+  const goToPage = useCallback(
+    (index: number) => {
+      const clamped = Math.max(0, Math.min(index, story.pages.length - 1));
+      listRef.current?.scrollToIndex({ index: clamped, animated: true });
+    },
+    [story.pages.length],
+  );
+
+  const { isPlaying, positionMs, durationMs, activeWordIndex, wordTimings, togglePlay, seek } =
+    useNarration(story.pages[currentPage], selectedVoiceId, {
+      autoPlay: true,
+      onFinished: () => {
+        if (currentPage < story.pages.length - 1) goToPage(currentPage + 1);
+      },
+    });
+
   const activeVoice = voices.find((v) => v.id === selectedVoiceId) ?? voices[0];
   const cycleVoice = useCallback(() => {
     const idx = voices.findIndex((v) => v.id === selectedVoiceId);
@@ -80,7 +93,7 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
       Animated.timing(chromeOpacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(
         () => setChromeVisible(false),
       );
-    }, 3500);
+    }, 2500);
   }, [chromeOpacity]);
 
   const toggleChrome = useCallback(() => {
@@ -101,57 +114,42 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
     };
   }, [showChrome]);
 
-  // ---- Navegação entre páginas ----
-  const goToPage = useCallback(
-    (index: number) => {
-      const clamped = Math.max(0, Math.min(index, story.pages.length - 1));
-      listRef.current?.scrollToIndex({ index: clamped, animated: true });
-    },
-    [story.pages.length],
-  );
-
   const onMomentumEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const index = Math.round(e.nativeEvent.contentOffset.x / width);
       if (index !== currentPage) {
         setCurrentPage(index);
-        resetForPage(story.pages[index]);
         showChrome();
       }
     },
-    [width, currentPage, resetForPage, story.pages, showChrome],
+    [width, currentPage, showChrome],
   );
 
-  // Auto-avanço ao terminar o áudio da página.
-  useEffect(() => {
-    if (durationMs > 0 && positionMs >= durationMs && currentPage < story.pages.length - 1) {
-      goToPage(currentPage + 1);
-    }
-  }, [positionMs, durationMs, currentPage, story.pages.length, goToPage]);
-
+  const currentId = story.pages[currentPage].id;
   const renderPage = useCallback(
-    ({ item }: { item: StoryPage }) => (
-      <Pressable onPress={toggleChrome} style={{ width, height }}>
-        <ImageBackground
-          source={{ uri: item.imageUri }}
-          style={styles.pageImage}
-          resizeMode="cover"
-        >
-          <LinearGradient
-            colors={['transparent', 'rgba(30,27,46,0.15)', 'rgba(30,27,46,0.92)']}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={[styles.textWrap, { paddingBottom: insets.bottom + 140 }]}>
-            <KaraokeText
-              page={item}
-              positionMs={item.id === story.pages[currentPage].id ? positionMs : 0}
-              wordTimings={item.id === story.pages[currentPage].id ? wordTimings : undefined}
+    ({ item }: { item: StoryPage }) => {
+      const isCurrent = item.id === currentId;
+      return (
+        <Pressable onPress={toggleChrome} style={{ width, height }}>
+          <ImageBackground source={{ uri: item.imageUri }} style={styles.pageImage} resizeMode="cover">
+            <LinearGradient
+              colors={['transparent', 'rgba(30,27,46,0.15)', 'rgba(30,27,46,0.92)']}
+              style={StyleSheet.absoluteFill}
             />
-          </View>
-        </ImageBackground>
-      </Pressable>
-    ),
-    [width, height, toggleChrome, insets.bottom, positionMs, wordTimings, currentPage, story.pages],
+            <View style={[styles.textWrap, { paddingBottom: insets.bottom + 140 }]}>
+              <KaraokeText
+                text={item.text}
+                words={isCurrent ? wordTimings : item.wordTimings}
+                activeIndex={isCurrent ? activeWordIndex : -1}
+                textStyle={styles.readingText}
+                activeStyle={styles.wordActive}
+              />
+            </View>
+          </ImageBackground>
+        </Pressable>
+      );
+    },
+    [width, height, toggleChrome, insets.bottom, wordTimings, activeWordIndex, currentId],
   );
 
   const progress = durationMs > 0 ? Math.min(positionMs / durationMs, 1) : 0;
@@ -177,15 +175,13 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
           pointerEvents="box-none"
           style={[styles.topBar, { opacity: chromeOpacity, paddingTop: insets.top + spacing.sm }]}
         >
-          <RoundButton onPress={onClose} accessibilityLabel="Fechar leitura">
-            <Icon name={X} color={INK} size={22} />
-          </RoundButton>
+          <HoldToClose onClose={onClose} />
           <View style={styles.pageCounter}>
             <RNText style={styles.pageCounterText}>
               {currentPage + 1} / {story.pages.length}
             </RNText>
           </View>
-          <View style={{ width: 56 }} />
+          <View style={{ width: 44 }} />
         </Animated.View>
       )}
 
@@ -206,23 +202,13 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
           </Pressable>
 
           <View style={styles.transport}>
-            <RoundButton
-              onPress={() => goToPage(currentPage - 1)}
-              accessibilityLabel="Página anterior"
-            >
+            <RoundButton onPress={() => goToPage(currentPage - 1)} accessibilityLabel="Página anterior">
               <Icon name={ChevronLeft} color={INK} size={26} />
             </RoundButton>
-            <RoundButton
-              big
-              onPress={togglePlay}
-              accessibilityLabel={isPlaying ? 'Pausar' : 'Tocar'}
-            >
-              <Icon name={isPlaying ? Pause : Play} color={INK} size={30} />
+            <RoundButton big onPress={togglePlay} accessibilityLabel={isPlaying ? 'Pausar' : 'Tocar'}>
+              <Icon name={isPlaying ? Pause : Play} color={INK} size={24} />
             </RoundButton>
-            <RoundButton
-              onPress={() => goToPage(currentPage + 1)}
-              accessibilityLabel="Próxima página"
-            >
+            <RoundButton onPress={() => goToPage(currentPage + 1)} accessibilityLabel="Próxima página">
               <Icon name={ChevronRight} color={INK} size={26} />
             </RoundButton>
             <RoundButton onPress={cycleVoice} accessibilityLabel="Trocar voz da narração">
@@ -242,180 +228,6 @@ export default function StoryPlayer({ story, initialPage = 0, onClose }: StoryPl
     </View>
   );
 }
-
-/* ----------------------- Texto com efeito karaokê ----------------------- */
-
-function KaraokeText({
-  page,
-  positionMs,
-  wordTimings,
-}: {
-  page: StoryPage;
-  positionMs: number;
-  wordTimings?: WordTiming[];
-}) {
-  const timings = wordTimings ?? page.wordTimings;
-
-  if (!timings || timings.length === 0) {
-    return <RNText style={styles.readingText}>{page.text}</RNText>;
-  }
-
-  return (
-    <RNText style={styles.readingText}>
-      {timings.map((t, i) => {
-        const active = positionMs >= t.startMs && positionMs < t.endMs;
-        return (
-          <RNText key={`${t.word}-${i}`} style={active ? styles.wordActive : undefined}>
-            {t.word}
-            {i < timings.length - 1 ? ' ' : ''}
-          </RNText>
-        );
-      })}
-    </RNText>
-  );
-}
-
-/* ------------- Hook de reprodução (áudio real OU simulado) -------------- */
-/**
- * Quando há backend online, busca a narração (/voice/synthesize): se vier áudio
- * (ElevenLabs), toca com expo-audio e dirige a posição pelo relógio do áudio;
- * sempre usa os wordTimings retornados para o karaokê. Sem áudio (offline/mock),
- * cai num timer simulado dirigido pelos wordTimings locais.
- */
-function useNarratedPlayback(page: StoryPage, voiceId: string) {
-  const online = useConnectivity((s) => s.isOnline);
-
-  // Narração remota (áudio + timings)
-  const [remote, setRemote] = useState<RemoteNarration | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    setRemote(null);
-    if (!config.useMocks && online) {
-      fetchNarration(page.text, voiceId)
-        .then((r) => {
-          if (!cancelled) setRemote(r);
-        })
-        .catch(() => {});
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [page.id, page.text, voiceId, online]);
-
-  const audioSource = remote?.audioUri ? { uri: remote.audioUri } : undefined;
-  const player = useAudioPlayer(audioSource);
-  const status = useAudioPlayerStatus(player);
-  const hasAudio = Boolean(remote?.audioUri) && status.isLoaded;
-
-  // Timings ativos: remotos quando houver, senão os da página (offline)
-  const wordTimings = remote?.wordTimings ?? page.wordTimings ?? [];
-
-  // Fallback simulado (timer)
-  const simDuration = useMemo(() => {
-    const last = wordTimings[wordTimings.length - 1];
-    return last ? last.endMs : 6000;
-  }, [wordTimings]);
-  const [simPlaying, setSimPlaying] = useState(true);
-  const [simPos, setSimPos] = useState(0);
-  const tick = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    // reseta ao trocar de página
-    setSimPos(0);
-    setSimPlaying(true);
-  }, [page.id]);
-
-  useEffect(() => {
-    if (hasAudio || !simPlaying) {
-      if (tick.current) clearInterval(tick.current);
-      tick.current = null;
-      return;
-    }
-    const STEP = 50;
-    tick.current = setInterval(() => {
-      setSimPos((prev) => {
-        const next = prev + STEP;
-        if (next >= simDuration) {
-          if (tick.current) clearInterval(tick.current);
-          tick.current = null;
-          return simDuration;
-        }
-        return next;
-      });
-    }, STEP);
-    return () => {
-      if (tick.current) clearInterval(tick.current);
-      tick.current = null;
-    };
-  }, [hasAudio, simPlaying, simDuration]);
-
-  // Autoplay quando o áudio real carrega
-  useEffect(() => {
-    if (hasAudio) player.play();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasAudio]);
-
-  if (hasAudio) {
-    const durationMs = (status.duration || simDuration / 1000) * 1000;
-    return {
-      isPlaying: status.playing,
-      positionMs: status.currentTime * 1000,
-      durationMs,
-      wordTimings,
-      togglePlay: () => (status.playing ? player.pause() : player.play()),
-      seek: (ms: number) => player.seekTo(ms / 1000),
-      resetForPage: (_next: StoryPage) => {},
-    };
-  }
-
-  return {
-    isPlaying: simPlaying,
-    positionMs: simPos,
-    durationMs: simDuration,
-    wordTimings,
-    togglePlay: () =>
-      setSimPlaying((p) => {
-        if (!p && simPos >= simDuration) setSimPos(0);
-        return !p;
-      }),
-    seek: (ms: number) => setSimPos(Math.max(0, Math.min(ms, simDuration))),
-    resetForPage: (_next: StoryPage) => {
-      setSimPos(0);
-      setSimPlaying(true);
-    },
-  };
-}
-
-/* --------------------------- Botão redondo ----------------------------- */
-
-function RoundButton({
-  children,
-  onPress,
-  big,
-  accessibilityLabel,
-}: {
-  children: React.ReactNode;
-  onPress?: () => void;
-  big?: boolean;
-  accessibilityLabel?: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.roundBtn,
-        big && styles.roundBtnBig,
-        pressed && { transform: [{ scale: 0.92 }], opacity: 0.85 },
-      ]}
-    >
-      {children}
-    </Pressable>
-  );
-}
-
-/* ----------------------------------------------------------------------- */
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.dark.background },
@@ -491,14 +303,4 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.md },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.4)' },
   dotActive: { backgroundColor: Colors.light.yellow, width: 22 },
-
-  roundBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.pill,
-    backgroundColor: OVERLAY,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roundBtnBig: { width: 76, height: 76, backgroundColor: Colors.light.primary },
 });

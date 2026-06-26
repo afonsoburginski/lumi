@@ -59,7 +59,9 @@ export const useVoice = create<VoiceState>()(
     (set, get) => ({
       cloned: [],
       selectedVoiceId: 'preset-fada',
-      allVoices: () => [...VOICE_PRESETS, ...get().cloned],
+      // Clonagem desabilitada por ora (ElevenLabs free não clona) — só presets.
+      // Reativar: `[...VOICE_PRESETS, ...get().cloned]` quando houver upgrade.
+      allVoices: () => [...VOICE_PRESETS],
       select: (id) => set({ selectedVoiceId: id }),
       addClonedVoice: (ownerId, label, consent, samplesBase64 = []) => {
         const profile: VoiceProfile = {

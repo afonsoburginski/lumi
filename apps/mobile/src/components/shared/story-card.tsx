@@ -1,49 +1,78 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { CloudOff, Heart, Play } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { BookOpen, CloudOff, Heart, Play, Smartphone } from 'lucide-react-native';
+import { storyFormat } from '@lumi/shared/types';
 
 import { Text } from '@/components/ui/text';
 import { Icon } from '@/components/ui/icon';
-import { Card, CardContent } from '@/components/ui/card';
 import { useGate } from '@/features/auth/hooks/use-gate';
-import { useLibrary } from '@/features/community/store/library-store';
-import { gradients, radius, spacing } from '@/theme/tokens';
+import { gradients, radius, shadow, spacing } from '@/theme/tokens';
+import { Colors } from '@/theme/colors';
 import type { Story } from '@/types/domain';
 
 export function StoryCard({ story }: { story: Story }) {
   const router = useRouter();
   const { gate } = useGate();
-  const isFavorite = useLibrary((s) => s.favorites.includes(story.id));
-
   const cover = story.coverColors ?? gradients.brand;
+  const landscape = storyFormat(story) === 'landscape';
+
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const onPress = () => {
+    if (process.env.EXPO_OS === 'ios') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    gate('read', () => router.push(`/player/${story.id}`));
+  };
 
   return (
     <Pressable
-      onPress={() => gate('read', () => router.push(`/player/${story.id}`))}
+      onPress={onPress}
+      onPressIn={() => {
+        scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 14, stiffness: 320 });
+      }}
       accessibilityRole="button"
       accessibilityLabel={`Ler ${story.title}`}
       style={{ marginBottom: spacing.md }}
     >
-      <Card style={styles.card}>
-        <LinearGradient colors={cover} style={styles.cover}>
-          {story.pendingSync ? (
-            <View style={styles.pendingBadge}>
-              <Icon name={CloudOff} color="#FFFFFF" size={12} />
-              <Text variant="caption" lightColor="#FFFFFF" darkColor="#FFFFFF">
-                {' '}
-                pendente
+      <Animated.View style={[styles.card, animatedStyle]}>
+        <LinearGradient
+          colors={cover}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.cover}
+        >
+          <View style={styles.coverTop}>
+            <View style={styles.formatBadge}>
+              <Icon name={landscape ? BookOpen : Smartphone} color="#FFFFFF" size={12} />
+              <Text
+                variant="caption"
+                lightColor="#FFFFFF"
+                darkColor="#FFFFFF"
+                style={styles.badgeText}
+              >
+                {landscape ? 'Livrinho' : 'Vertical'}
               </Text>
             </View>
-          ) : (
-            <View />
-          )}
+            {story.pendingSync ? (
+              <View style={styles.pendingBadge}>
+                <Icon name={CloudOff} color="#FFFFFF" size={12} />
+              </View>
+            ) : null}
+          </View>
+
           <View style={styles.playBadge}>
-            <Icon name={Play} color="#FFFFFF" size={22} />
+            <Icon name={Play} color="#2B2A4A" size={24} />
           </View>
         </LinearGradient>
-        <CardContent style={{ paddingVertical: spacing.md }}>
+
+        <View style={styles.body}>
           <Text variant="subtitle" numberOfLines={1}>
             {story.title}
           </Text>
@@ -52,42 +81,59 @@ export function StoryCard({ story }: { story: Story }) {
               {story.ageBand} anos{story.authorName ? ` · ${story.authorName}` : ''}
             </Text>
             <View style={styles.likes}>
-              <Icon name={Heart} size={14} color="#FF7AA2" />
+              <Icon name={Heart} size={14} color={Colors.light.pink} />
               <Text variant="caption"> {story.likes}</Text>
             </View>
           </View>
-        </CardContent>
-      </Card>
+        </View>
+      </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { overflow: 'hidden', borderRadius: radius.lg },
+  card: {
+    width: '100%',
+    backgroundColor: Colors.light.card,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    ...shadow.card,
+  },
   cover: {
-    height: 150,
+    height: 160,
     padding: spacing.md,
-    flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  playBadge: {
-    width: 44,
-    height: 44,
+  coverTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  formatBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.22)',
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  badgeText: { fontSize: 12, fontWeight: '700' },
+  pendingBadge: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: radius.pill,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.pill,
+    backgroundColor: Colors.light.yellow,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-end',
+    ...shadow.glow,
   },
-  pendingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.sm,
-    height: 24,
-    alignSelf: 'flex-start',
-  },
+  body: { padding: spacing.md },
   meta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
