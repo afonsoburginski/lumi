@@ -23,6 +23,11 @@ export const env = {
     provider: process.env.IMAGE_PROVIDER ?? 'mock',
     geminiImageModel: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash-image',
   },
+  admin: {
+    /** Gate de operações one-shot (cleanup, migrações). Ligar via ALLOW_ADMIN_OPS=1
+     * no compose, rodar a operação e desligar. */
+    enabled: process.env.ALLOW_ADMIN_OPS === '1',
+  },
   storage: {
     // Cloudflare R2 (S3-compatible). Sem chaves → storage desabilitado (fallback
     // pro comportamento atual). Com chaves → imagens/áudio sobem pro bucket e o DB

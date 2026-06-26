@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
 import { env } from '@/env';
+import { adminRoutes } from '@/routes/admin';
 import { authRoutes } from '@/routes/auth';
 import { communityRoutes } from '@/routes/community';
 import { healthRoutes } from '@/routes/health';
@@ -25,6 +26,7 @@ app.route('/health', healthRoutes);
 app.route('/auth', authRoutes);
 app.route('/stories', storyRoutes);
 app.route('/voice', voiceRoutes);
+app.route('/admin', adminRoutes);
 app.route('/', communityRoutes); // /stories/:id/(like|comments|rate), /collections
 
 export default { port: env.port, fetch: app.fetch };

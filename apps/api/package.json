@@ -12,7 +12,8 @@
     "db:push": "prisma db push",
     "db:seed": "bun run prisma/seed.ts",
     "db:studio": "prisma studio",
-    "cleanup-r2": "bun run scripts/cleanup-r2-legacy.ts"
+    "cleanup-r2": "bun run scripts/cleanup-r2-legacy.ts",
+    "seed-prebake": "bun run scripts/seed-prebake.ts"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",

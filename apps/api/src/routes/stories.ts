@@ -176,9 +176,6 @@ storyRoutes.get('/:id/manifest', async (c) => {
     where: { id: storyId },
     include: storyInclude,
   });
-  if (!story || !story.isPublic) {
-    return c.json({ error: 'not_found', message: 'História não encontrada' }, 404);
-  }
 
   const audioByVoice: Record<string, { pageId: string; audioUrl: string; timingsUrl: string; ext: string }[]> = {};
 
@@ -202,11 +199,20 @@ storyRoutes.get('/:id/manifest', async (c) => {
     }
   }
 
+  // Hidrata cover/pages SE houver registro no DB; histórias-seed (bundled no
+  // mobile) não têm registro e ainda assim devem expor `audioByVoice` do R2 pra
+  // o mobile baixar as outras vozes pré-bakeadas.
+  const hasDbStory = !!story && story.isPublic;
+  const hasR2Audio = Object.keys(audioByVoice).length > 0;
+  if (!hasDbStory && !hasR2Audio) {
+    return c.json({ error: 'not_found', message: 'História não encontrada' }, 404);
+  }
+
   return c.json({
-    storyId: story.id,
-    version: story.createdAt.getTime(),
-    cover: story.coverUri ? { url: story.coverUri } : null,
-    pages: story.pages.map((p) => ({ pageId: p.id, imageUrl: p.imageUri })),
+    storyId,
+    version: story?.createdAt.getTime() ?? 0,
+    cover: story?.coverUri ? { url: story.coverUri } : null,
+    pages: story?.pages.map((p) => ({ pageId: p.id, imageUrl: p.imageUri })) ?? [],
     audioByVoice,
     voices: ACTIVE_VOICE_PRESETS,
   });
