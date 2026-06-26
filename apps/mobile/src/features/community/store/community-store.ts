@@ -136,9 +136,14 @@ export const useCommunity = create<CommunityState>()(
     {
       name: 'lumi-community',
       storage: zustandStorage,
-      version: 2,
-      // v2: troca os seeds mock pela história-showcase real (Catarina). Mantém
-      // curtidas/comentários/avaliações.
+      version: 8,
+      // v8: ilustrações limpas (sem blur lateral) preenchendo a página (cover).
+      // v7: ilustrações estendidas (spread mais largo 1.44, sem corte).
+      // v6: ilustrações recortadas na proporção da página (preenchem sem corte).
+      // v5: capa vira página 0 narrada (Catarina show de sonhar). v4: narração offline
+      // empacotada na Catarina (show de sonhar). v3: re-semeia
+      // com as duas versões da Catarina (jardim + show de sonhar do PDF). v2: troca os
+      // seeds mock pela showcase real. Em todos, mantém curtidas/comentários/avaliações.
       migrate: (persisted) => ({
         ...((persisted as object | null) ?? {}),
         stories: buildSeedStories(),

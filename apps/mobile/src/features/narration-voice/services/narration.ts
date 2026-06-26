@@ -11,6 +11,8 @@ export interface RemoteNarration {
 }
 
 interface SynthesizeResponse {
+  /** URL pública (R2/CDN) quando o servidor tem storage; baixamos p/ tocar offline. */
+  audioUrl?: string;
   audioBase64?: string;
   mimeType?: string;
   wordTimings: WordTiming[];
@@ -21,6 +23,10 @@ function extFor(mimeType?: string): string {
   if (mimeType?.includes('wav')) return 'wav';
   if (mimeType?.includes('mpeg') || mimeType?.includes('mp3')) return 'mp3';
   return 'mp3';
+}
+
+function extFromUrl(url: string): string {
+  return url.toLowerCase().endsWith('.wav') ? 'wav' : 'mp3';
 }
 
 /**
@@ -51,10 +57,16 @@ export async function fetchNarration(
     body: JSON.stringify({ text, voiceId }),
   });
 
+  const dir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+  const name = cacheKey ? `narration-${cacheKey}` : `narration-${Date.now()}`;
+
   let audioUri: string | undefined;
-  if (data.audioBase64) {
-    const dir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
-    const name = cacheKey ? `narration-${cacheKey}` : `narration-${Date.now()}`;
+  if (data.audioUrl) {
+    // Storage (R2): baixa o arquivo pro device → toca offline nas próximas vezes.
+    const path = `${dir}${name}.${extFromUrl(data.audioUrl)}`;
+    const res = await FileSystem.downloadAsync(data.audioUrl, path);
+    audioUri = res.uri;
+  } else if (data.audioBase64) {
     const path = `${dir}${name}.${extFor(data.mimeType)}`;
     await FileSystem.writeAsStringAsync(path, data.audioBase64, {
       encoding: FileSystem.EncodingType.Base64,

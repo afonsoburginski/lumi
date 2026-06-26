@@ -23,4 +23,14 @@ export const env = {
     provider: process.env.IMAGE_PROVIDER ?? 'mock',
     geminiImageModel: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash-image',
   },
+  storage: {
+    // Cloudflare R2 (S3-compatible). Sem chaves → storage desabilitado (fallback
+    // pro comportamento atual). Com chaves → imagens/áudio sobem pro bucket e o DB
+    // guarda só as URLs públicas (servidas por R2_PUBLIC_BASE_URL atrás de CDN).
+    bucket: process.env.R2_BUCKET ?? '',
+    endpoint: process.env.R2_S3_ENDPOINT ?? '',
+    publicBaseUrl: process.env.R2_PUBLIC_BASE_URL ?? '',
+    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+  },
 };

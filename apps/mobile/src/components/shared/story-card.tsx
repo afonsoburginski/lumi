@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { BookOpen, CloudOff, Heart, Play, Smartphone } from 'lucide-react-native';
@@ -20,6 +21,11 @@ interface StoryCardProps {
   onDelete?: () => void;
 }
 
+/**
+ * Card no estilo Audible: a CAPA do livrinho em destaque (thumbnail retrato com
+ * sombra de livro) + título/autor/meta à direita e botão de tocar. A capa real
+ * (`coverUri`) é mostrada quando existe; senão, cai no gradiente de marca.
+ */
 export function StoryCard({ story, onDelete }: StoryCardProps) {
   const router = useRouter();
   const { gate } = useGate();
@@ -56,7 +62,7 @@ export function StoryCard({ story, onDelete }: StoryCardProps) {
       onLongPress={onLongPress}
       delayLongPress={400}
       onPressIn={() => {
-        scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
+        scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
       }}
       onPressOut={() => {
         scale.value = withSpring(1, { damping: 14, stiffness: 320 });
@@ -67,103 +73,127 @@ export function StoryCard({ story, onDelete }: StoryCardProps) {
       style={{ marginBottom: spacing.md }}
     >
       <Animated.View style={[styles.card, animatedStyle]}>
-        <LinearGradient
-          colors={cover}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.cover}
-        >
-          <View style={styles.coverTop}>
+        {/* Capa do livrinho (estante) */}
+        <View style={styles.coverWrap}>
+          <View style={styles.cover}>
+            {story.coverUri ? (
+              <Image
+                source={{ uri: story.coverUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                contentPosition="top"
+                transition={150}
+              />
+            ) : (
+              <LinearGradient
+                colors={cover}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+            {/* lombada: leve brilho na borda esquerda p/ dar volume de livro */}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.35)', 'rgba(255,255,255,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.25, y: 0 }}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+          </View>
+        </View>
+
+        {/* Infos */}
+        <View style={styles.body}>
+          <View style={styles.badgeRow}>
             <View style={styles.formatBadge}>
-              <Icon name={landscape ? BookOpen : Smartphone} color="#FFFFFF" size={12} />
-              <Text
-                variant="caption"
-                lightColor="#FFFFFF"
-                darkColor="#FFFFFF"
-                style={styles.badgeText}
-              >
+              <Icon name={landscape ? BookOpen : Smartphone} color={Colors.light.tint} size={11} />
+              <Text variant="caption" style={styles.badgeText}>
                 {landscape ? 'Livrinho' : 'Vertical'}
               </Text>
             </View>
-            {story.pendingSync ? (
-              <View style={styles.pendingBadge}>
-                <Icon name={CloudOff} color="#FFFFFF" size={12} />
-              </View>
-            ) : null}
+            {story.pendingSync ? <Icon name={CloudOff} color={Colors.light.mutedForeground} size={13} /> : null}
           </View>
 
-          <View style={styles.playBadge}>
-            <Icon name={Play} color="#2B2A4A" size={24} />
-          </View>
-        </LinearGradient>
-
-        <View style={styles.body}>
-          <Text variant="subtitle" numberOfLines={1}>
+          <Text variant="subtitle" numberOfLines={2} style={styles.title}>
             {story.title}
           </Text>
+          {story.authorName ? (
+            <Text variant="caption" numberOfLines={1} style={styles.author}>
+              {story.authorName}
+            </Text>
+          ) : null}
+
           <View style={styles.meta}>
-            <Text variant="caption">
-              {story.ageBand} anos{story.authorName ? ` · ${story.authorName}` : ''}
+            <Text variant="caption" style={styles.metaText}>
+              {story.ageBand} anos
             </Text>
             <View style={styles.likes}>
-              <Icon name={Heart} size={14} color={Colors.light.pink} />
-              <Text variant="caption"> {story.likes}</Text>
+              <Icon name={Heart} size={13} color={Colors.light.pink} />
+              <Text variant="caption" style={styles.metaText}> {story.likes}</Text>
             </View>
           </View>
+        </View>
+
+        {/* Tocar */}
+        <View style={styles.playBadge}>
+          <Icon name={Play} color="#2B2A4A" size={22} />
         </View>
       </Animated.View>
     </Pressable>
   );
 }
 
+const COVER_W = 96;
+const COVER_H = 132;
+
 const styles = StyleSheet.create({
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     width: '100%',
     backgroundColor: Colors.light.card,
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    padding: spacing.sm,
+    gap: spacing.md,
     ...shadow.card,
   },
-  cover: {
-    height: 160,
-    padding: spacing.md,
-    justifyContent: 'space-between',
+  coverWrap: {
+    borderRadius: radius.md,
+    ...shadow.soft,
   },
-  coverTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cover: {
+    width: COVER_W,
+    height: COVER_H,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: Colors.light.background,
+  },
+  body: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 3 },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   formatBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.22)',
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.light.muted,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  pendingBadge: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: radius.pill,
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  badgeText: { fontSize: 11, fontWeight: '700', color: Colors.light.tint },
+  title: { fontWeight: '800', lineHeight: 22 },
+  author: { color: Colors.light.mutedForeground },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 2 },
+  metaText: { color: Colors.light.mutedForeground },
+  likes: { flexDirection: 'row', alignItems: 'center' },
   playBadge: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: radius.pill,
     backgroundColor: Colors.light.yellow,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'flex-end',
     ...shadow.glow,
   },
-  body: { padding: spacing.md },
-  meta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.xs,
-  },
-  likes: { flexDirection: 'row', alignItems: 'center' },
 });

@@ -59,7 +59,10 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
   const [wantPlaying, setWantPlaying] = useState(autoPlay);
 
   const effectiveUri = page.audioUri ?? lazyUri;
-  const shouldLazy = !page.audioUri && !config.useMocks;
+  // Sintetiza sempre que a API estiver disponível (igual ao preview do profile).
+  // NÃO depende de `useMocks` — TTS exige backend, e travar nele deixava o player
+  // mudo mesmo com a API no ar.
+  const shouldLazy = !page.audioUri && !!config.apiUrl;
 
   // player único; trocamos a fonte por replace() (controle explícito)
   const player = useAudioPlayer(null);

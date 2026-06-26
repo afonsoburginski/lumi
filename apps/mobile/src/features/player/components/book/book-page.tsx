@@ -8,7 +8,11 @@ import type { StoryPage } from '@/types/domain';
 
 import { BOOK } from './constants';
 
-/** Ilustração full-bleed (página esquerda do spread). */
+/**
+ * Ilustração full-bleed da página esquerda. As artes são recortadas na MESMA
+ * proporção da página (~0.63, igual ao PDF), então `cover` preenche a página
+ * inteira sem cortar os personagens nem deixar barras.
+ */
 export const Illustration = React.memo(({ page }: { page: StoryPage }) => (
   <Image source={{ uri: page.imageUri }} style={styles.illo} contentFit="cover" transition={120} />
 ));
@@ -47,7 +51,7 @@ export const TextPage = React.memo(({ page, author }: { page: StoryPage; author:
 TextPage.displayName = 'TextPage';
 
 const styles = StyleSheet.create({
-  illo: { width: '100%', height: '100%' },
+  illo: { width: '100%', height: '100%', backgroundColor: '#1a1726' },
   paper: { flex: 1, backgroundColor: BOOK.paper, paddingHorizontal: 22, paddingTop: 12, paddingBottom: 10 },
   author: {
     color: BOOK.inkSoft,

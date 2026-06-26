@@ -45,7 +45,8 @@ export default function PlayerRoute() {
     }, LOADER_MAX_MS);
 
     const page1 = story.pages[0];
-    if (page1 && !config.useMocks) {
+    // Só pré-sintetiza se a página NÃO tem áudio empacotado (offline) e há API.
+    if (page1 && !page1.audioUri && config.apiUrl) {
       fetchNarration(page1.text, selectedVoiceId, `lazy-${page1.id}-${selectedVoiceId}`)
         .catch(() => {})
         .finally(() => {

@@ -9,7 +9,9 @@ export const BOOK = {
   inkSoft: '#9A958A', // autor / nº página
   playBlue: '#4F86F7',
   flipMs: 640,
-  aspectRatio: 2.0, // largura:altura do spread (2 páginas)
+  // Spread = 2 páginas (livro mais largo, ~como o print do PDF). Páginas ~0.70; a
+  // ilustração preenche a página inteira (cover), cortando só uma fração de céu/chão.
+  aspectRatio: 1.4,
   barBase: 52, // altura da barra (sem o safe-area top)
 } as const;
 

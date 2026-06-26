@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Reanimated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Image } from 'expo-image';
 import { useKeepAwake } from 'expo-keep-awake';
+import { DEFAULT_VOICE_ID } from '@lumi/shared';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useVoice } from '@/features/narration-voice/store/voice-store';
@@ -13,7 +15,7 @@ import type { Story } from '@/types/domain';
 import { useBookPager } from '../hooks/use-book-pager';
 import { useNarration } from '../hooks/use-narration';
 import { useAutoHideChrome } from '../hooks/use-auto-hide-chrome';
-import { BOOK, bookSize, barTotalHeight } from './book/constants';
+import { BOOK, bookSize } from './book/constants';
 import { Illustration, TextPage } from './book/book-page';
 import { BookTopBar } from './book/book-top-bar';
 
@@ -38,6 +40,10 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
   const pages = story.pages;
   const author = (story.authorName ?? 'Lumi').toUpperCase();
 
+  // A CAPA é a página 0 (id "-cover"): renderiza como livro de pé e o narrador lê o
+  // título; ao terminar, auto-avança pra página 1 (como o Gemini Storybook).
+  const isCover = useCallback((i: number) => pages[i]?.id?.endsWith('-cover') ?? false, [pages]);
+
   const { currentPage, turn, goNext, goPrev, flip, dir } = useBookPager(pages.length, initialPage);
   const { visible, show, toggle } = useAutoHideChrome();
 
@@ -46,8 +52,15 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
   const selectVoice = useVoice((s) => s.select);
   const activeVoice = voices.find((v) => v.id === selectedVoiceId) ?? voices[0];
 
-  const { isPlaying, togglePlay } = useNarration(pages[currentPage], selectedVoiceId, {
-    autoPlay: true,
+  // O áudio empacotado (offline) é da voz padrão. Se a criança troca de voz, ignora
+  // o áudio empacotado e sintetiza a voz escolhida (exige internet).
+  const narrationPage = useMemo(() => {
+    const p = pages[currentPage];
+    return selectedVoiceId === DEFAULT_VOICE_ID ? p : { ...p, audioUri: undefined };
+  }, [pages, currentPage, selectedVoiceId]);
+
+  const { isPlaying, togglePlay } = useNarration(narrationPage, selectedVoiceId, {
+    autoPlay: true, // capa e páginas narram sozinhas; auto-avança ao terminar
     onFinished: () => {
       if (currentPage < pages.length - 1) goNext();
     },
@@ -95,51 +108,67 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
     transform: [{ translateY: (chrome.value - 1) * 14 }],
   }));
 
-  // Livro centralizado ABAIXO da barra (ela nunca tampa a ilustração/texto).
-  // Margem horizontal respeita o notch; a vertical é pequena (mais altura pro livro).
-  const barH = barTotalHeight(insets.top);
+  // Livro centralizado ocupando a ALTURA CHEIA — a barra é flutuante e auto-some
+  // (não reserva mais a própria altura, que deixava um vão sobrando no topo).
   const marginX = Math.max(insets.left, insets.right, 12);
-  const marginY = 8;
+  const marginY = 6;
   const availW = width - marginX * 2;
-  const availH = height - barH - marginY * 2;
+  const availH = height - marginY * 2;
   const { width: bookW, height: bookH, half } = bookSize(availW, availH);
   const barPadH = Math.max((width - bookW) / 2, spacing.sm);
 
   const src = pages[currentPage];
-  const dest = turn ? pages[turn.to] : pages[currentPage];
+  const destIdx = turn ? turn.to : currentPage;
+  const dest = pages[destIdx];
+
+  // Capa de pé no aspecto real da capa-livro do PDF (já vem com lombada + título).
+  const COVER_ASPECT = 900 / 1035;
+  const coverW = Math.min(bookH * COVER_ASPECT, availW * 0.96);
 
   return (
     <View style={[styles.root, { backgroundColor: BOOK.backdrop }]}>
       <StatusBar hidden animated />
 
-      {/* Toque em qualquer lugar do livro: só alterna a barra (não pausa/navega) */}
-      <Pressable style={[styles.stage, { paddingTop: barH }]} onPress={toggle}>
-        <View style={[styles.book, { width: bookW, height: bookH }]}>
-          <View style={styles.leftPage}>
-            <Illustration page={dest} />
+      {/* Toque em qualquer lugar: só alterna a barra (não pausa/navega) */}
+      <Pressable style={styles.stage} onPress={toggle}>
+        {isCover(destIdx) ? (
+          // CAPA (página 0): livro de pé com a capinha igual ao PDF.
+          <View style={[styles.coverBook, { width: coverW, height: bookH }]}>
+            <Image
+              source={{ uri: dest.imageUri }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={150}
+            />
           </View>
-          <View style={styles.rightPage}>
-            <TextPage page={dest} author={author} />
+        ) : (
+          <View style={[styles.book, { width: bookW, height: bookH }]}>
+            <View style={styles.leftPage}>
+              <Illustration page={dest} />
+            </View>
+            <View style={styles.rightPage}>
+              <TextPage page={dest} author={author} />
+            </View>
+
+            {/* folha virando: só entre páginas (não quando vem/vai da capa) */}
+            {turn && !isCover(currentPage) ? (
+              <>
+                <Reanimated.View style={[styles.leftPage, leftCoverStyle]}>
+                  <Illustration page={src} />
+                </Reanimated.View>
+                <Reanimated.View style={[styles.rightPage, styles.leaf, { width: half }, leafStyle]}>
+                  <TextPage page={src} author={author} />
+                  <Reanimated.View
+                    style={[StyleSheet.absoluteFill, styles.leafShade, leafShadeStyle]}
+                    pointerEvents="none"
+                  />
+                </Reanimated.View>
+              </>
+            ) : null}
+
+            <View style={[styles.spine, { left: half - 1 }]} pointerEvents="none" />
           </View>
-
-          {turn ? (
-            <Reanimated.View style={[styles.leftPage, leftCoverStyle]}>
-              <Illustration page={src} />
-            </Reanimated.View>
-          ) : null}
-
-          {turn ? (
-            <Reanimated.View style={[styles.rightPage, styles.leaf, { width: half }, leafStyle]}>
-              <TextPage page={src} author={author} />
-              <Reanimated.View
-                style={[StyleSheet.absoluteFill, styles.leafShade, leafShadeStyle]}
-                pointerEvents="none"
-              />
-            </Reanimated.View>
-          ) : null}
-
-          <View style={[styles.spine, { left: half - 1 }]} pointerEvents="none" />
-        </View>
+        )}
       </Pressable>
 
       {/* Barra que aparece/some: X sai, setas navegam, play e troca de voz */}
@@ -201,4 +230,16 @@ const styles = StyleSheet.create({
   leaf: { left: '50%', right: undefined, transformOrigin: 'left', backfaceVisibility: 'hidden' },
   leafShade: { backgroundColor: '#000', borderRadius: 10 },
   spine: { position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: 'rgba(0,0,0,0.18)' },
+
+  // Capa de pé (página 0)
+  coverBook: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 14,
+  },
 });

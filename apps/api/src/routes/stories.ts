@@ -7,6 +7,21 @@ import { requireAuth, type AuthEnv } from '@/middleware/auth';
 import { aiProvider } from '@/ai';
 import { imageProvider } from '@/image';
 import { moderateText } from '@/safety/moderation';
+import { storageEnabled, imageKey, putAsset } from '@/storage';
+
+/**
+ * Sobe uma imagem data-URI (data:image/png;base64,...) pro R2 e devolve a URL
+ * pública (content-addressed → dedupe). Passa direto se já for URL ou storage off.
+ */
+async function persistImage(src: string): Promise<string> {
+  if (!storageEnabled || !src.startsWith('data:')) return src;
+  const m = src.match(/^data:(image\/(\w+));base64,(.+)$/);
+  if (!m) return src;
+  const [, mime, ext, b64] = m;
+  const bytes = Buffer.from(b64, 'base64');
+  const { url } = await putAsset(imageKey(bytes, ext), bytes, mime);
+  return url;
+}
 
 export const storyRoutes = new Hono<AuthEnv>();
 
@@ -89,12 +104,14 @@ storyRoutes.post('/generate', requireAuth, async (c) => {
     tone: parsed.data.tone,
     pageTexts: story.pages.map((p) => p.text),
   });
+  // Persiste as imagens no R2 (quando habilitado) → DB guarda URL, não base64.
+  const pageImages = await Promise.all(art.pageImages.map((img) => persistImage(img)));
   return c.json({
     title: story.title,
     ageBand: parsed.data.ageBand,
     tone: parsed.data.tone,
     coverColors: art.coverColors,
-    pages: story.pages.map((p, i) => ({ text: p.text, imageUri: art.pageImages[i] })),
+    pages: story.pages.map((p, i) => ({ text: p.text, imageUri: pageImages[i] })),
     provider: aiProvider.name,
   });
 });
@@ -126,6 +143,32 @@ storyRoutes.get('/:id', async (c) => {
     return c.json({ error: 'not_found', message: 'História não encontrada' }, 404);
   }
   return c.json(toStoryDto(story));
+});
+
+/**
+ * Manifest p/ download offline + revalidação: lista os assets (capa + imagens +
+ * áudios) com suas URLs. `version` muda quando a história é atualizada → o mobile
+ * compara e rebaixa só o que mudou. A `key` (basename da URL) serve de hash estável
+ * pro cache local quando os assets são content-addressed.
+ */
+storyRoutes.get('/:id/manifest', async (c) => {
+  const story = await prisma.story.findUnique({
+    where: { id: c.req.param('id') },
+    include: storyInclude,
+  });
+  if (!story || !story.isPublic) {
+    return c.json({ error: 'not_found', message: 'História não encontrada' }, 404);
+  }
+  const assets: { kind: string; pageId?: string; url: string; key: string }[] = [];
+  const add = (kind: string, url: string | null | undefined, pageId?: string) => {
+    if (url) assets.push({ kind, pageId, url, key: url.split('/').pop() ?? url });
+  };
+  add('cover', story.coverUri);
+  for (const p of story.pages) {
+    add('image', p.imageUri, p.id);
+    add('audio', p.audioUri, p.id);
+  }
+  return c.json({ storyId: story.id, version: story.createdAt.getTime(), assets });
 });
 
 // Deleta uma história do próprio usuário (cascade: pages, comments, ratings).
