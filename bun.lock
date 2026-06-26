@@ -25,6 +25,7 @@
       "name": "@lumi/mobile",
       "version": "0.1.0",
       "dependencies": {
+        "@expo-google-fonts/lora": "^0.4.2",
         "@lumi/shared": "workspace:*",
         "@react-native-async-storage/async-storage": "2.2.0",
         "@tanstack/react-query": "^5.101.1",
@@ -32,6 +33,7 @@
         "expo-audio": "~56.0.12",
         "expo-constants": "~56.0.18",
         "expo-dev-client": "~56.0.20",
+        "expo-font": "~56.0.7",
         "expo-haptics": "^56.0.3",
         "expo-image": "^56.0.11",
         "expo-image-picker": "~56.0.18",
@@ -246,6 +248,8 @@
     "@eslint/object-schema": ["@eslint/object-schema@2.1.7", "", {}, "sha512-VtAOaymWVfZcmZbp6E2mympDIHvyjXs/12LqWYjVw6qjrfF+VK+fyG33kChz3nnK+SU5/NeHOqrTEHS8sXO3OA=="],
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
+
+    "@expo-google-fonts/lora": ["@expo-google-fonts/lora@0.4.2", "", {}, "sha512-Bnofh2mIOUKp4KUS48VjaBgug4lQOcw/ftU0NFv5OPtiutL422//G1v63xDZEMUEL6ft4fi5q94/uKcpDjbPag=="],
 
     "@expo-google-fonts/material-symbols": ["@expo-google-fonts/material-symbols@0.4.38", "", {}, "sha512-IJkBtN1o8u9BW5fvSii1MyHPQ7Q0HxbWcVBvOrOzgMLpVtZw7R2w94wBTVR7kZwv3w1JNTESMmLA5Sqn1+Z36A=="],
 

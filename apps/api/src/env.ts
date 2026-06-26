@@ -18,4 +18,9 @@ export const env = {
     // Clonagem (voz da família) via ElevenLabs. Sem chave → sem clonagem.
     elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? '',
   },
+  image: {
+    // Ilustração: 'mock' (placeholder) ou 'gemini' (geração real — requer billing).
+    provider: process.env.IMAGE_PROVIDER ?? 'mock',
+    geminiImageModel: process.env.GEMINI_IMAGE_MODEL ?? 'gemini-2.5-flash-image',
+  },
 };

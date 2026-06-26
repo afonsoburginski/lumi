@@ -128,6 +128,20 @@ storyRoutes.get('/:id', async (c) => {
   return c.json(toStoryDto(story));
 });
 
+// Deleta uma história do próprio usuário (cascade: pages, comments, ratings).
+storyRoutes.delete('/:id', requireAuth, async (c) => {
+  const id = c.req.param('id');
+  const story = await prisma.story.findUnique({ where: { id }, select: { authorId: true } });
+  if (!story) {
+    return c.json({ error: 'not_found', message: 'História não encontrada' }, 404);
+  }
+  if (story.authorId !== c.get('userId')) {
+    return c.json({ error: 'forbidden', message: 'Você não é o autor desta história' }, 403);
+  }
+  await prisma.story.delete({ where: { id } });
+  return c.json({ ok: true });
+});
+
 storyRoutes.post('/', requireAuth, async (c) => {
   const parsed = publishStorySchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) {

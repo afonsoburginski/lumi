@@ -97,6 +97,7 @@ export interface Collection {
 
 export type OutboxType =
   | 'publish_story'
+  | 'delete_story'
   | 'like'
   | 'comment'
   | 'rate'

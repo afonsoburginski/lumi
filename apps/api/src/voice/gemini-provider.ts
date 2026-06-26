@@ -93,7 +93,8 @@ export function createGeminiVoiceProvider(): VoiceProvider {
 
     async synthesize(text, voiceId): Promise<Narration> {
       const preset = PRESETS.find((p) => p.id === voiceId);
-      const voiceName = preset?.voiceName ?? DEFAULT_VOICE;
+      // voiceId pode ser um id de preset OU um nome de voz Gemini cru (vindo do catálogo).
+      const voiceName = preset?.voiceName ?? (voiceId || DEFAULT_VOICE);
       const style = preset?.style ?? DEFAULT_STYLE;
 
       const response = await client.models.generateContent({
