@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { DEFAULT_VOICE_ID, VOICE_PRESETS, type VoicePresetDef } from '@lumi/shared';
+import { ACTIVE_VOICE_PRESETS, DEFAULT_VOICE_ID, type VoicePresetDef } from '@lumi/shared';
 
 import { zustandStorage } from '@/lib/storage';
 
@@ -19,7 +19,7 @@ export const useVoice = create<VoiceState>()(
   persist(
     (set) => ({
       selectedVoiceId: DEFAULT_VOICE_ID,
-      allVoices: () => VOICE_PRESETS,
+      allVoices: () => ACTIVE_VOICE_PRESETS,
       select: (id) => set({ selectedVoiceId: id }),
     }),
     {

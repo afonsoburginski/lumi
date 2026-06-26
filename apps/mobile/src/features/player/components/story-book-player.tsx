@@ -143,22 +143,44 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
     }, 5500);
   }, [chromeOpacity]);
 
+  const hideChrome = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    Animated.timing(chromeOpacity, { toValue: 0, duration: 500, useNativeDriver: true }).start(
+      () => setChromeVisible(false),
+    );
+  }, [chromeOpacity]);
+
+  // inicia o timer de auto-hide sem re-renderizar (chromeVisible já é true por padrão)
   useEffect(() => {
-    showChrome();
+    hideTimer.current = setTimeout(() => {
+      Animated.timing(chromeOpacity, {
+        toValue: 0,
+        duration: 900,
+        useNativeDriver: true,
+      }).start(() => setChromeVisible(false));
+    }, 5500);
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
-  }, [showChrome]);
+  }, [chromeOpacity]);
 
-  // toque: qualquer lugar mostra a barra (auto-hide cuida de esconder); bordas ainda viram a página
+  // toque (igual ao Expo player):
+  // - barra visível → qualquer toque esconde
+  // - barra escondida → mostra; nas bordas do livro também vira página
+  const bookWRef = useRef(0);
   const onTapPage = useCallback(
     (e: GestureResponderEvent) => {
+      if (chromeVisible) {
+        hideChrome();
+        return;
+      }
+      const w = bookWRef.current || 1;
       const x = e.nativeEvent.locationX;
+      if (x < w * 0.28) goPrev();
+      else if (x > w * 0.72) goNext();
       showChrome();
-      if (x < width * 0.28) goPrev();
-      else if (x > width * 0.72) goNext();
     },
-    [width, goPrev, goNext, showChrome],
+    [goPrev, goNext, showChrome, hideChrome, chromeVisible],
   );
 
   // ---- animações ----
@@ -174,9 +196,9 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
   const leafShadeStyle = useAnimatedStyle(() => ({ opacity: Math.sin(flip.value * Math.PI) * 0.22 }));
 
   // ---- layout do livro: ocupa o MÁXIMO da tela (a barra fica por cima) ----
-  // barra colada no topo: ignora a maior parte do safe-area (em landscape ele é ~0)
-  const barTopPad = Math.max(insets.top - 8, 0);
-  const barH = barTopPad + 40;
+  // barra colada no topo: em landscape o safe-area top costuma ser ~0
+  const barTopPad = Math.min(insets.top, 6);
+  const barH = barTopPad + 52;
   const m = 8;
   const availH = height - m * 2;
   const availW = width - Math.max(insets.left, insets.right, m) * 2;
@@ -188,6 +210,9 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
     bookW = bookH * AR;
   }
   const halfW = bookW / 2;
+  bookWRef.current = bookW;
+  // padding lateral da barra: alinha com as bordas do livro
+  const barPadH = Math.max((width - bookW) / 2, spacing.sm);
 
   const srcIndex = currentPage;
   const destIndex = turn ? turn.to : currentPage;
@@ -224,44 +249,56 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
       {/* ---- Barra superior (estilo Gemini, auto-hide por cima) ---- */}
       {chromeVisible ? (
         <Animated.View
-          style={[styles.bar, { height: barH, paddingTop: barTopPad, opacity: chromeOpacity }]}
+          style={[
+            styles.bar,
+            {
+              height: barH,
+              paddingTop: barTopPad,
+              paddingHorizontal: barPadH,
+              opacity: chromeOpacity,
+            },
+          ]}
         >
           <View style={styles.barSide}>
-            <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn} accessibilityLabel="Fechar">
-              <Icon name={X} color={BAR_INK} size={20} />
+            <Pressable onPress={onClose} hitSlop={8} style={styles.ghostBtn} accessibilityLabel="Fechar">
+              <Icon name={X} color={BAR_INK} size={18} />
             </Pressable>
-            <RNText style={styles.title} numberOfLines={1}>
+            <RNText style={styles.title} numberOfLines={1} ellipsizeMode="tail">
               {story.title}
             </RNText>
           </View>
 
           <View style={styles.pager}>
-            <Pressable onPress={goPrev} hitSlop={8} accessibilityLabel="Página anterior">
-              <Icon name={ChevronLeft} color={currentPage > 0 ? BAR_INK : BAR_MUTED} size={20} />
+            <Pressable onPress={goPrev} hitSlop={8} style={styles.ghostBtn} accessibilityLabel="Página anterior">
+              <Icon name={ChevronLeft} color={currentPage > 0 ? BAR_INK : BAR_MUTED} size={18} />
             </Pressable>
-            <RNText style={styles.pagerText}>
+            <RNText style={styles.pagerText} numberOfLines={1}>
               {currentPage + 1}/{pages.length}
             </RNText>
-            <Pressable onPress={goNext} hitSlop={8} accessibilityLabel="Próxima página">
+            <Pressable onPress={goNext} hitSlop={8} style={styles.ghostBtn} accessibilityLabel="Próxima página">
               <Icon
                 name={ChevronRight}
                 color={currentPage < pages.length - 1 ? BAR_INK : BAR_MUTED}
-                size={20}
+                size={18}
               />
             </Pressable>
           </View>
 
           <View style={[styles.barSide, styles.barRight]}>
-            <Pressable onPress={cycleVoice} style={styles.voiceBtn} accessibilityLabel="Trocar voz">
+            <Pressable onPress={cycleVoice} style={styles.voicePill} accessibilityLabel="Trocar voz">
               <Icon name={Volume2} color={BAR_INK} size={16} />
-              {activeVoice ? <RNText style={styles.voiceTxt}>{activeVoice.label}</RNText> : null}
+              {activeVoice ? (
+                <RNText style={styles.voiceTxt} numberOfLines={1} ellipsizeMode="tail">
+                  {activeVoice.label}
+                </RNText>
+              ) : null}
             </Pressable>
             <Pressable
               onPress={togglePlay}
               style={styles.playBtn}
               accessibilityLabel={isPlaying ? 'Pausar narração' : 'Ouvir narração'}
             >
-              <Icon name={isPlaying ? Pause : Play} color="#FFFFFF" size={18} />
+              <Icon name={isPlaying ? Pause : Play} color="#FFFFFF" size={16} />
             </Pressable>
           </View>
         </Animated.View>
@@ -327,39 +364,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(34,37,44,0.94)',
-    paddingHorizontal: spacing.md,
+    backgroundColor: 'rgba(34,37,44,0.92)',
     gap: spacing.sm,
   },
-  barSide: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, minWidth: 0 },
-  barRight: { justifyContent: 'flex-end' },
-  title: { color: BAR_INK, fontFamily: fonts.serifMedium, fontSize: 15, flexShrink: 1 },
-  pager: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pagerText: { color: BAR_INK, fontSize: 13, fontWeight: '600', minWidth: 44, textAlign: 'center' },
-  voiceBtn: {
+  barSide: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    maxWidth: 150,
+    gap: spacing.sm,
+    flex: 1,
+    minWidth: 0,
   },
-  voiceTxt: { color: BAR_INK, fontSize: 12, fontWeight: '600' },
-  playBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: PLAY_BLUE,
+  barRight: { justifyContent: 'flex-end' },
+  title: {
+    color: BAR_INK,
+    fontFamily: fonts.serifMedium,
+    fontSize: 14,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  pager: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pagerText: {
+    color: BAR_INK,
+    fontSize: 13,
+    fontWeight: '600',
+    minWidth: 44,
+    textAlign: 'center',
+  },
+  ghostBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  voicePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 34,
     backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 17,
+    paddingHorizontal: 12,
+    maxWidth: 160,
+  },
+  voiceTxt: { color: BAR_INK, fontSize: 12, fontWeight: '600', flexShrink: 1 },
+  playBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: PLAY_BLUE,
     alignItems: 'center',
     justifyContent: 'center',
   },

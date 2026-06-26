@@ -1,29 +1,24 @@
+import type { VoiceVendor } from '@lumi/shared';
+
 import { env } from '@/env';
-import { createCatalogVoiceProvider } from '@/voice/catalog-provider';
+import { createVoiceRouter, type VoiceStrategy } from '@/voice/catalog-provider';
 import { createElevenLabsProvider } from '@/voice/elevenlabs-provider';
 import { createGeminiVoiceProvider } from '@/voice/gemini-provider';
 import { createMockVoiceProvider } from '@/voice/mock-provider';
 import type { VoiceProvider } from '@/voice/types';
 
 /**
- * Seleção do provider de voz — catálogo de presets profissionais (ElevenLabs +
- * Gemini), roteando cada preset ao seu vendor (ver @lumi/shared/voices):
- * - Gemini (+ ElevenLabs se houver chave) → catálogo completo, Gemini de fallback.
- * - só ElevenLabs → tudo no ElevenLabs.
- * - nenhum → mock offline.
+ * Seleção do provider de voz (strategy pattern): registra uma estratégia por
+ * vendor disponível (Gemini se há GEMINI_API_KEY; ElevenLabs se há a chave) e
+ * roteia cada preset ao seu vendor — sem fallback. Sem chave nenhuma → mock.
  */
 function selectVoiceProvider(): VoiceProvider {
-  const hasGemini = Boolean(env.ai.geminiApiKey);
-  const hasEleven = Boolean(env.voice.elevenLabsApiKey);
+  const strategies: Partial<Record<VoiceVendor, VoiceStrategy>> = {};
+  if (env.ai.geminiApiKey) strategies.gemini = createGeminiVoiceProvider();
+  if (env.voice.elevenLabsApiKey) strategies.elevenlabs = createElevenLabsProvider();
 
-  if (hasGemini) {
-    return createCatalogVoiceProvider(
-      createGeminiVoiceProvider(),
-      hasEleven ? createElevenLabsProvider() : null,
-    );
-  }
-  if (hasEleven) return createElevenLabsProvider();
-  return createMockVoiceProvider();
+  if (Object.keys(strategies).length === 0) return createMockVoiceProvider();
+  return createVoiceRouter(strategies);
 }
 
 export const voiceProvider: VoiceProvider = selectVoiceProvider();

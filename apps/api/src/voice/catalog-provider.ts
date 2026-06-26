@@ -1,34 +1,32 @@
-import { DEFAULT_VOICE_ID, VOICE_PRESETS, findVoicePreset } from '@lumi/shared';
+import { ACTIVE_VOICE_PRESETS, DEFAULT_VOICE_ID, findVoicePreset, type VoiceVendor } from '@lumi/shared';
 
-import type { VoiceProvider } from '@/voice/types';
+import type { Narration, VoiceProvider } from '@/voice/types';
+
+/** Estratégia de síntese de um vendor (ElevenLabs ou Gemini). */
+export interface VoiceStrategy {
+  synthesize(text: string, ref: string): Promise<Narration>;
+}
 
 /**
- * Roteador de catálogo: cada preset (ver @lumi/shared/voices) aponta para um
- * vendor (ElevenLabs ou Gemini). Sintetiza no provider certo; se o ElevenLabs
- * falhar (cota/erro), cai no Gemini pra nunca ficar mudo. Clonagem foi removida.
+ * Roteador de voz — STRATEGY PATTERN: cada preset (ver @lumi/shared/voices)
+ * declara seu vendor; a síntese vai para a estratégia daquele vendor usando o
+ * `ref` correto (voice_id do ElevenLabs OU nome da voz Gemini). SEM fallback —
+ * se a estratégia do vendor não estiver registrada, erro explícito.
  */
-const GEMINI_FALLBACK_VOICE = 'Sulafat';
-
-export function createCatalogVoiceProvider(
-  gemini: VoiceProvider,
-  eleven: VoiceProvider | null,
+export function createVoiceRouter(
+  strategies: Partial<Record<VoiceVendor, VoiceStrategy>>,
 ): VoiceProvider {
   return {
-    name: `catalog(${eleven ? 'elevenlabs+' : ''}gemini)`,
-    listPresets: () => VOICE_PRESETS.map(({ id, label }) => ({ id, label })),
+    name: `router(${Object.keys(strategies).join('+')})`,
+    listPresets: () => ACTIVE_VOICE_PRESETS.map(({ id, label }) => ({ id, label })),
 
-    async synthesize(text, voiceId) {
+    synthesize(text, voiceId) {
       const preset = findVoicePreset(voiceId) ?? findVoicePreset(DEFAULT_VOICE_ID)!;
-      if (preset.vendor === 'elevenlabs' && eleven) {
-        try {
-          return await eleven.synthesize(text, preset.ref);
-        } catch {
-          // cota/erro do ElevenLabs → narra com o Gemini (não fica mudo)
-          return gemini.synthesize(text, GEMINI_FALLBACK_VOICE);
-        }
+      const strategy = strategies[preset.vendor];
+      if (!strategy) {
+        throw new Error(`Sem estratégia de voz para o vendor "${preset.vendor}" (voiceId=${voiceId})`);
       }
-      // presets Gemini (ou ElevenLabs sem chave) → Gemini
-      return gemini.synthesize(text, preset.vendor === 'gemini' ? preset.ref : GEMINI_FALLBACK_VOICE);
+      return strategy.synthesize(text, preset.ref);
     },
 
     async cloneVoice(): Promise<{ voiceId: string }> {
