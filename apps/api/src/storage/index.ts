@@ -3,12 +3,21 @@ import { S3Client } from 'bun';
 import { env } from '@/env';
 
 /**
- * Storage de assets (imagens + áudio) em object storage S3-compatible (Cloudflare R2).
+ * Storage de assets (imagens + áudio + avatares) em object storage S3-compatible
+ * (Cloudflare R2).
  *
- * Chaves são CONTENT-ADDRESSED (sha256) → o mesmo conteúdo nunca é duplicado e o
- * upload é idempotente. O DB guarda só a URL pública (servida pelo domínio/CDN de
- * R2_PUBLIC_BASE_URL). Sem chaves configuradas, `enabled` é false e os callers
- * mantêm o comportamento atual (base64) — nada quebra até as chaves entrarem.
+ * Paths SEMÂNTICOS agrupados por entidade — facilita auditoria/limpeza do bucket
+ * e dá uma "pasta por história":
+ *
+ *     stories/<storyId>/cover.<ext>
+ *     stories/<storyId>/pages/<pageId>.<ext>
+ *     stories/<storyId>/audio/<voiceId>/<pageId>.<ext>
+ *     stories/<storyId>/audio/<voiceId>/<pageId>.json   (timings + duração)
+ *     avatars/<userId>.<ext>
+ *     previews/<sha>.<ext>                              (TTS ad-hoc sem dono)
+ *
+ * Sem chaves configuradas, `storageEnabled` é false e os callers caem em base64
+ * inline — nada quebra até as chaves entrarem.
  */
 
 const { bucket, endpoint, publicBaseUrl, accessKeyId, secretAccessKey } = env.storage;
@@ -30,21 +39,57 @@ export function sha256(data: Uint8Array | Buffer): string {
   return new Bun.CryptoHasher('sha256').update(data).digest('hex');
 }
 
-/** Key content-addressed de uma imagem (dedupe por bytes). */
-export function imageKey(data: Uint8Array | Buffer, ext = 'png'): string {
-  return `images/${sha256(data)}.${ext}`;
+// ---- Key builders (paths semânticos) ---------------------------------------
+
+const STORY_PREFIX = 'stories';
+const AVATAR_PREFIX = 'avatars';
+const PREVIEW_PREFIX = 'previews';
+
+/** Capa da história. */
+export function storyCoverKey(storyId: string, ext = 'png'): string {
+  return `${STORY_PREFIX}/${storyId}/cover.${ext}`;
 }
 
-/**
- * Hash content-addressed de uma narração (dedupe por voz + texto normalizado).
- * Sem extensão: o áudio vira `<base>.<ext>` e os metadados (timings) `<base>.json`,
- * permitindo formatos diferentes por vendor (mp3 ElevenLabs / wav Gemini).
- */
-export function audioHashKey(voiceId: string, text: string): string {
+/** Imagem de uma página. */
+export function storyImageKey(storyId: string, pageId: string, ext = 'png'): string {
+  return `${STORY_PREFIX}/${storyId}/pages/${pageId}.${ext}`;
+}
+
+/** Narração de uma página numa voz específica. */
+export function storyAudioKey(
+  storyId: string,
+  pageId: string,
+  voiceId: string,
+  ext: string,
+): string {
+  return `${STORY_PREFIX}/${storyId}/audio/${voiceId}/${pageId}.${ext}`;
+}
+
+/** Sidecar JSON com wordTimings + durationMs ao lado do áudio. */
+export function storyAudioMetaKey(storyId: string, pageId: string, voiceId: string): string {
+  return `${STORY_PREFIX}/${storyId}/audio/${voiceId}/${pageId}.json`;
+}
+
+/** Avatar de perfil. */
+export function avatarKey(userId: string, ext = 'png'): string {
+  return `${AVATAR_PREFIX}/${userId}.${ext}`;
+}
+
+/** Path para áudio ad-hoc sem dono (preview de voz, etc.). */
+export function previewAudioKey(voiceId: string, text: string, ext: string): string {
   const norm = text.trim().replace(/\s+/g, ' ');
   const hash = new Bun.CryptoHasher('sha256').update(`${voiceId}\n${norm}`).digest('hex');
-  return `audio/${hash}`;
+  return `${PREVIEW_PREFIX}/${hash}.${ext}`;
 }
+
+/** Sidecar JSON ao lado de um preview de áudio. */
+export function previewAudioMetaKey(voiceId: string, text: string): string {
+  const norm = text.trim().replace(/\s+/g, ' ');
+  const hash = new Bun.CryptoHasher('sha256').update(`${voiceId}\n${norm}`).digest('hex');
+  return `${PREVIEW_PREFIX}/${hash}.json`;
+}
+
+// ---- I/O --------------------------------------------------------------------
 
 /** Existe a key no bucket? false se storage off. */
 export async function exists(key: string): Promise<boolean> {
@@ -83,4 +128,30 @@ export async function putAsset(
     await client.write(key, data, { type: contentType });
   }
   return { key, url: publicUrl(key) };
+}
+
+/**
+ * Lista TODAS as keys com um dado prefix (pagina automaticamente). Usado por
+ * cleanup, manifest e migrações. Retorna [] se storage off.
+ */
+export async function listKeys(prefix: string): Promise<string[]> {
+  if (!client) return [];
+  const out: string[] = [];
+  let token: string | undefined;
+  do {
+    const res = await client.list({ prefix, continuationToken: token, maxKeys: 1000 });
+    for (const item of res.contents ?? []) out.push(item.key);
+    token = res.isTruncated ? res.continuationToken : undefined;
+  } while (token);
+  return out;
+}
+
+/** Deleta uma key. No-op se storage off. */
+export async function deleteKey(key: string): Promise<void> {
+  if (!client) return;
+  try {
+    await client.delete(key);
+  } catch {
+    /* ignore */
+  }
 }

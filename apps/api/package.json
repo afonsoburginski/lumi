@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "bun run prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "cleanup-r2": "bun run scripts/cleanup-r2-legacy.ts"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",

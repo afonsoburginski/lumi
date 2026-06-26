@@ -9,6 +9,7 @@ import { DEFAULT_VOICE_ID } from '@lumi/shared';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useVoice } from '@/features/narration-voice/store/voice-store';
+import { prefetchStoryAudios } from '@/features/narration-voice/services/prefetch';
 import { spacing } from '@/theme/tokens';
 import type { Story } from '@/types/domain';
 
@@ -52,8 +53,14 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
   const selectVoice = useVoice((s) => s.select);
   const activeVoice = voices.find((v) => v.id === selectedVoiceId) ?? voices[0];
 
-  // O áudio empacotado (offline) é da voz padrão. Se a criança troca de voz, ignora
-  // o áudio empacotado e sintetiza a voz escolhida (exige internet).
+  // Eager prefetch: ao abrir o livrinho, baixa TODAS as vozes pré-bakeadas
+  // (manifest /stories/:id/manifest → R2). Idempotente — pula o que já está local.
+  useEffect(() => {
+    prefetchStoryAudios(story.id).catch(() => {});
+  }, [story.id]);
+
+  // Áudio empacotado (offline) só serve pra voz padrão. Pra outras vozes, o
+  // `useNarration` resolve via cache local (prefetch) ou síntese sob demanda.
   const narrationPage = useMemo(() => {
     const p = pages[currentPage];
     return selectedVoiceId === DEFAULT_VOICE_ID ? p : { ...p, audioUri: undefined };
@@ -61,6 +68,7 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
 
   const { isPlaying, togglePlay } = useNarration(narrationPage, selectedVoiceId, {
     autoPlay: true, // capa e páginas narram sozinhas; auto-avança ao terminar
+    storyId: story.id,
     onFinished: () => {
       if (currentPage < pages.length - 1) goNext();
     },

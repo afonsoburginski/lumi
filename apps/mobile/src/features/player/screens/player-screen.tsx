@@ -47,7 +47,7 @@ export default function PlayerRoute() {
     const page1 = story.pages[0];
     // Só pré-sintetiza se a página NÃO tem áudio empacotado (offline) e há API.
     if (page1 && !page1.audioUri && config.apiUrl) {
-      fetchNarration(page1.text, selectedVoiceId, `lazy-${page1.id}-${selectedVoiceId}`)
+      fetchNarration({ text: page1.text, voiceId: selectedVoiceId, storyId: story.id, pageId: page1.id })
         .catch(() => {})
         .finally(() => {
           settled = true;

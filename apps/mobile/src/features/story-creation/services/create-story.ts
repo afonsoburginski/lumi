@@ -18,7 +18,7 @@ async function preloadNarration(story: Story, voiceId: string): Promise<void> {
   await Promise.all(
     story.pages.map(async (page) => {
       try {
-        const r = await fetchNarration(page.text, voiceId, `${story.id}-${page.id}`);
+        const r = await fetchNarration({ text: page.text, voiceId, storyId: story.id, pageId: page.id });
         if (r.audioUri) {
           page.audioUri = r.audioUri;
           page.wordTimings = r.wordTimings;

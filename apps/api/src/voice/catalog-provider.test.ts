@@ -70,4 +70,17 @@ describe('createVoiceRouter — strategy + fallback cross-vendor', () => {
 
     await expect(router.synthesize('era uma vez', 'gem-leda')).rejects.toThrow(/indisponível/);
   });
+
+  test('strict: não cai em outra vendor mesmo se a do preset falhar', async () => {
+    const gem = spy('gemini', 'fail');
+    const el = spy('eleven', 'ok');
+    const router = createVoiceRouter({ gemini: gem.strategy, elevenlabs: el.strategy });
+
+    await expect(
+      router.synthesize('era uma vez', 'gem-leda', { strict: true }),
+    ).rejects.toThrow(/indisponível/);
+
+    expect(gem.calls).toEqual([GEM_LEDA_REF]); // tentou Gemini
+    expect(el.calls).toEqual([]); // mas não fez fallback pra ElevenLabs
+  });
 });

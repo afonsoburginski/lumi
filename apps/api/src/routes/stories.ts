@@ -7,11 +7,24 @@ import { requireAuth, type AuthEnv } from '@/middleware/auth';
 import { aiProvider } from '@/ai';
 import { imageProvider } from '@/image';
 import { moderateText } from '@/safety/moderation';
-import { storageEnabled, imageKey, putAsset } from '@/storage';
+import {
+  storageEnabled,
+  putAsset,
+  sha256,
+  storyAudioMetaKey,
+  listKeys,
+  publicUrl,
+} from '@/storage';
+import { ACTIVE_VOICE_PRESETS } from '@lumi/shared';
+import { prebakeStory, prebakeStoryInBackground } from '@/voice/prebake';
 
 /**
  * Sobe uma imagem data-URI (data:image/png;base64,...) pro R2 e devolve a URL
- * pública (content-addressed → dedupe). Passa direto se já for URL ou storage off.
+ * pública. Usada na FASE DE GERAÇÃO (antes da história ter id) — joga num bucket
+ * temporário `previews/` com hash do conteúdo; quando a história é publicada,
+ * a imagem é re-uploada pro path semântico definitivo.
+ *
+ * Passa direto se já for URL ou storage off.
  */
 async function persistImage(src: string): Promise<string> {
   if (!storageEnabled || !src.startsWith('data:')) return src;
@@ -19,7 +32,9 @@ async function persistImage(src: string): Promise<string> {
   if (!m) return src;
   const [, mime, ext, b64] = m;
   const bytes = Buffer.from(b64, 'base64');
-  const { url } = await putAsset(imageKey(bytes, ext), bytes, mime);
+  // pré-publicação: chave content-addressed em `previews/` (sem storyId ainda).
+  const key = `previews/${sha256(bytes)}.${ext}`;
+  const { url } = await putAsset(key, bytes, mime);
   return url;
 }
 
@@ -146,29 +161,55 @@ storyRoutes.get('/:id', async (c) => {
 });
 
 /**
- * Manifest p/ download offline + revalidação: lista os assets (capa + imagens +
- * áudios) com suas URLs. `version` muda quando a história é atualizada → o mobile
- * compara e rebaixa só o que mudou. A `key` (basename da URL) serve de hash estável
- * pro cache local quando os assets são content-addressed.
+ * Manifest p/ download offline. Estrutura agrupada por entidade:
+ *
+ *   { cover, pages[{ pageId, imageUrl }], audioByVoice: { [voiceId]: [{ pageId, audioUrl, timingsUrl, ext }] }, voices }
+ *
+ * `audioByVoice` reflete o estado real do R2: só inclui o que o pré-bake já
+ * empurrou. O cliente compara com o catálogo `voices` e, se faltar voz/página,
+ * pede a síntese sob demanda via `POST /voice/synthesize` (passando storyId/pageId
+ * pra cair na key correta).
  */
 storyRoutes.get('/:id/manifest', async (c) => {
+  const storyId = c.req.param('id');
   const story = await prisma.story.findUnique({
-    where: { id: c.req.param('id') },
+    where: { id: storyId },
     include: storyInclude,
   });
   if (!story || !story.isPublic) {
     return c.json({ error: 'not_found', message: 'História não encontrada' }, 404);
   }
-  const assets: { kind: string; pageId?: string; url: string; key: string }[] = [];
-  const add = (kind: string, url: string | null | undefined, pageId?: string) => {
-    if (url) assets.push({ kind, pageId, url, key: url.split('/').pop() ?? url });
-  };
-  add('cover', story.coverUri);
-  for (const p of story.pages) {
-    add('image', p.imageUri, p.id);
-    add('audio', p.audioUri, p.id);
+
+  const audioByVoice: Record<string, { pageId: string; audioUrl: string; timingsUrl: string; ext: string }[]> = {};
+
+  if (storageEnabled) {
+    // Lista o que JÁ ESTÁ no R2 dentro de stories/<id>/audio/.
+    // Keys têm o shape: stories/<id>/audio/<voiceId>/<pageId>.(mp3|wav|json)
+    const prefix = `stories/${storyId}/audio/`;
+    const keys = await listKeys(prefix);
+    for (const key of keys) {
+      const rest = key.slice(prefix.length); // <voiceId>/<pageId>.<ext>
+      const m = rest.match(/^([^/]+)\/(.+)\.(mp3|wav)$/);
+      if (!m) continue; // pula .json e qualquer outra coisa
+      const [, voiceId, pageId, ext] = m;
+      if (!audioByVoice[voiceId]) audioByVoice[voiceId] = [];
+      audioByVoice[voiceId].push({
+        pageId,
+        audioUrl: publicUrl(key),
+        timingsUrl: publicUrl(storyAudioMetaKey(storyId, pageId, voiceId)),
+        ext,
+      });
+    }
   }
-  return c.json({ storyId: story.id, version: story.createdAt.getTime(), assets });
+
+  return c.json({
+    storyId: story.id,
+    version: story.createdAt.getTime(),
+    cover: story.coverUri ? { url: story.coverUri } : null,
+    pages: story.pages.map((p) => ({ pageId: p.id, imageUrl: p.imageUri })),
+    audioByVoice,
+    voices: ACTIVE_VOICE_PRESETS,
+  });
 });
 
 // Deleta uma história do próprio usuário (cascade: pages, comments, ratings).
@@ -213,5 +254,17 @@ storyRoutes.post('/', requireAuth, async (c) => {
     },
     include: storyInclude,
   });
+  // Background: pré-bake das narrações em todas as vozes (não bloqueia a resposta).
+  prebakeStoryInBackground(story.id);
   return c.json(toStoryDto(story), 201);
+});
+
+/**
+ * Pré-bake manual: dispara síntese em TODAS as vozes ativas pra todas as páginas
+ * e empurra pro R2 (organizado em `stories/<id>/audio/<voiceId>/<pageId>.<ext>`).
+ * Idempotente — só sintetiza o que ainda não existe no bucket.
+ */
+storyRoutes.post('/:id/prebake-voices', async (c) => {
+  const report = await prebakeStory(c.req.param('id'));
+  return c.json(report);
 });

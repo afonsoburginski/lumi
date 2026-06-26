@@ -1,9 +1,19 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { DEFAULT_VOICE_ID } from '@lumi/shared';
 
 import { requireAuth, type AuthEnv } from '@/middleware/auth';
 import { voiceProvider } from '@/voice';
-import { storageEnabled, audioHashKey, exists, getText, putAsset, publicUrl } from '@/storage';
+import {
+  storageEnabled,
+  storyAudioKey,
+  storyAudioMetaKey,
+  previewAudioKey,
+  previewAudioMetaKey,
+  getText,
+  putAsset,
+  publicUrl,
+} from '@/storage';
 
 export const voiceRoutes = new Hono<AuthEnv>();
 
@@ -11,57 +21,99 @@ voiceRoutes.get('/presets', (c) => c.json({ presets: voiceProvider.listPresets()
 
 const synthSchema = z.object({
   text: z.string().min(1).max(2000),
-  voiceId: z.string().default('preset-fada'),
+  voiceId: z.string().default(DEFAULT_VOICE_ID),
+  /** Quando informados, a narração é salva em `stories/<id>/audio/<voiceId>/<pageId>`. */
+  storyId: z.string().optional(),
+  pageId: z.string().optional(),
+  /** Pré-bake: desliga o fallback cross-vendor (não grava voz errada na key pedida). */
+  strict: z.boolean().default(false),
 });
 
 const extFor = (mime?: string) => (mime?.includes('wav') ? 'wav' : 'mp3');
 
+interface AudioMeta {
+  ext: string;
+  wordTimings: unknown;
+  durationMs: number;
+}
+
+/** Resolve as keys de áudio + sidecar (history-aware vs preview ad-hoc). */
+function resolveKeys(input: {
+  text: string;
+  voiceId: string;
+  storyId?: string;
+  pageId?: string;
+  ext: string;
+}) {
+  const { text, voiceId, storyId, pageId, ext } = input;
+  if (storyId && pageId) {
+    return {
+      audioKey: storyAudioKey(storyId, pageId, voiceId, ext),
+      metaKey: storyAudioMetaKey(storyId, pageId, voiceId),
+    };
+  }
+  return {
+    audioKey: previewAudioKey(voiceId, text, ext),
+    metaKey: previewAudioMetaKey(voiceId, text),
+  };
+}
+
 /**
  * Sintetiza a narração de um texto → áudio + wordTimings (karaokê).
  *
- * Com storage (R2): a narração é CONTENT-ADDRESSED por (voz+texto). Se já existe no
- * bucket, devolve a URL sem re-sintetizar (reuso real, zero custo de TTS). Senão,
- * sintetiza, sobe o áudio + um sidecar JSON com os timings, e devolve a URL.
- * Sem storage: cai no comportamento antigo (audioBase64 inline).
+ * Com `storyId + pageId` e storage R2 habilitado: salva em
+ *   `stories/<storyId>/audio/<voiceId>/<pageId>.<ext>` + sidecar `.json`.
+ * Sem (preview ad-hoc): salva em `previews/<sha>.<ext>`.
+ * Reuso real: se a key já existe, devolve a URL sem re-sintetizar.
+ * Sem storage configurado: cai no comportamento antigo (audioBase64 inline).
  */
 voiceRoutes.post('/synthesize', async (c) => {
   const parsed = synthSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'validation', message: 'Texto inválido' }, 400);
-  const { text, voiceId } = parsed.data;
+  const { text, voiceId, storyId, pageId, strict } = parsed.data;
 
   if (storageEnabled) {
-    const base = audioHashKey(voiceId, text);
-    const metaKey = `${base}.json`;
-    const cached = await getText(metaKey);
-    if (cached) {
-      const meta = JSON.parse(cached) as { ext: string; wordTimings: unknown; durationMs: number };
-      return c.json({
-        audioUrl: publicUrl(`${base}.${meta.ext}`),
-        wordTimings: meta.wordTimings,
-        durationMs: meta.durationMs,
-      });
+    // 1) cache hit pelo sidecar (sabemos a extensão do áudio salvo)
+    const probeKeys = ['mp3', 'wav'].map((ext) => resolveKeys({ text, voiceId, storyId, pageId, ext }));
+    for (const { audioKey, metaKey } of probeKeys) {
+      const cached = await getText(metaKey);
+      if (cached) {
+        const meta = JSON.parse(cached) as AudioMeta;
+        return c.json({
+          audioUrl: publicUrl(audioKey),
+          timingsUrl: publicUrl(metaKey),
+          wordTimings: meta.wordTimings,
+          durationMs: meta.durationMs,
+        });
+      }
     }
-    const narration = await voiceProvider.synthesize(text, voiceId);
-    if (narration.audioBase64) {
-      const ext = extFor(narration.mimeType);
-      const bytes = Buffer.from(narration.audioBase64, 'base64');
-      await putAsset(`${base}.${ext}`, bytes, narration.mimeType ?? 'audio/mpeg');
-      await putAsset(
-        metaKey,
-        Buffer.from(JSON.stringify({ ext, wordTimings: narration.wordTimings, durationMs: narration.durationMs })),
-        'application/json',
-      );
-      return c.json({
-        audioUrl: publicUrl(`${base}.${ext}`),
-        wordTimings: narration.wordTimings,
-        durationMs: narration.durationMs,
-      });
+
+    // 2) cache miss → sintetiza e sobe
+    const narration = await voiceProvider.synthesize(text, voiceId, { strict });
+    if (!narration.audioBase64) {
+      // provider mock (sem áudio): devolve só os timings
+      return c.json({ wordTimings: narration.wordTimings, durationMs: narration.durationMs });
     }
-    // provider mock (sem áudio): devolve só os timings
-    return c.json({ wordTimings: narration.wordTimings, durationMs: narration.durationMs });
+    const ext = extFor(narration.mimeType);
+    const { audioKey, metaKey } = resolveKeys({ text, voiceId, storyId, pageId, ext });
+    const bytes = Buffer.from(narration.audioBase64, 'base64');
+    await putAsset(audioKey, bytes, narration.mimeType ?? 'audio/mpeg');
+    const meta: AudioMeta = {
+      ext,
+      wordTimings: narration.wordTimings,
+      durationMs: narration.durationMs,
+    };
+    await putAsset(metaKey, Buffer.from(JSON.stringify(meta)), 'application/json');
+    return c.json({
+      audioUrl: publicUrl(audioKey),
+      timingsUrl: publicUrl(metaKey),
+      wordTimings: narration.wordTimings,
+      durationMs: narration.durationMs,
+    });
   }
 
-  const narration = await voiceProvider.synthesize(text, voiceId);
+  // Sem storage: comportamento original (base64 inline).
+  const narration = await voiceProvider.synthesize(text, voiceId, { strict });
   return c.json(narration);
 });
 

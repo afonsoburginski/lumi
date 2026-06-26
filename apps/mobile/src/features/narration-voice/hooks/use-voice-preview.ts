@@ -21,7 +21,7 @@ export function useVoicePreview() {
       setErrorId(null);
       setLoadingId(voiceId);
       try {
-        const r = await fetchNarration(SAMPLE, voiceId, `preview-${voiceId}`);
+        const r = await fetchNarration({ text: SAMPLE, voiceId });
         if (r.audioUri) {
           player.replace({ uri: r.audioUri });
           player.seekTo(0);

@@ -31,6 +31,9 @@ function splitWords(text: string): string[] {
 export interface NarrationOptions {
   autoPlay?: boolean;
   onFinished?: () => void;
+  /** Quando informado, a síntese fica content-aware (path semântico no R2 +
+   * cache local em `lumi/stories/<id>/audio/<voice>/<page>.<ext>`). */
+  storyId?: string;
 }
 
 export interface Narration {
@@ -45,7 +48,7 @@ export interface Narration {
 }
 
 export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOptions = {}): Narration {
-  const { autoPlay = true, onFinished } = opts;
+  const { autoPlay = true, onFinished, storyId } = opts;
 
   const words = useMemo(() => splitWords(page.text), [page.text]);
   const wordTimings = useMemo<WordTiming[]>(
@@ -109,7 +112,7 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
 
     if (!page.audioUri && shouldLazy) {
       setPreparing(true);
-      fetchNarration(page.text, voiceId, `lazy-${page.id}-${voiceId}`)
+      fetchNarration({ text: page.text, voiceId, storyId, pageId: page.id })
         .then((r) => {
           if (cancelled) return;
           setPreparing(false);
@@ -127,7 +130,7 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
       clearPauseTimer();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page.id, voiceId]);
+  }, [page.id, voiceId, storyId]);
 
   // Carrega a fonte quando o áudio fica pronto; toca SE a intenção atual é tocar.
   useEffect(() => {

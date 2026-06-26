@@ -28,7 +28,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>lumi</string>
-				<string>com.atmansystems.lumi</string>
+				<string>com.afonsodev.lumi</string>
 			</array>
 		</dict>
 		<dict>

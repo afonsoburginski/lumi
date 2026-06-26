@@ -1,6 +1,6 @@
 import { ACTIVE_VOICE_PRESETS, DEFAULT_VOICE_ID, findVoicePreset, type VoiceVendor } from '@lumi/shared';
 
-import type { Narration, VoiceProvider } from '@/voice/types';
+import type { Narration, SynthesizeOptions, VoiceProvider } from '@/voice/types';
 
 /** Estratégia de síntese de um vendor (ElevenLabs ou Gemini). */
 export interface VoiceStrategy {
@@ -37,10 +37,13 @@ export function createVoiceRouter(
     name: `router(${available.join('+')})`,
     listPresets: () => ACTIVE_VOICE_PRESETS.map(({ id, label }) => ({ id, label })),
 
-    async synthesize(text, voiceId): Promise<Narration> {
+    async synthesize(text, voiceId, opts: SynthesizeOptions = {}): Promise<Narration> {
       const preset = findVoicePreset(voiceId) ?? findVoicePreset(DEFAULT_VOICE_ID)!;
-      // a vendor do preset primeiro; as demais como fallback (na ordem registrada)
-      const order: VoiceVendor[] = [preset.vendor, ...available.filter((v) => v !== preset.vendor)];
+      // Strict (pré-bake): só a vendor do preset — sem fallback cross-vendor pra
+      // não gravar áudio com voz errada na key da voz pedida.
+      const order: VoiceVendor[] = opts.strict
+        ? [preset.vendor]
+        : [preset.vendor, ...available.filter((v) => v !== preset.vendor)];
 
       let lastErr: unknown;
       for (const vendor of order) {
@@ -52,7 +55,7 @@ export function createVoiceRouter(
         } catch (err) {
           lastErr = err;
           console.warn(
-            `[voice] vendor "${vendor}" falhou (voiceId=${voiceId}) — tentando fallback…`,
+            `[voice] vendor "${vendor}" falhou (voiceId=${voiceId}${opts.strict ? ', strict' : ''}) — ${opts.strict ? 'sem fallback' : 'tentando fallback…'}`,
             err instanceof Error ? err.message : err,
           );
         }
