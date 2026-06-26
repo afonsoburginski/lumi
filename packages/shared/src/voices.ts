@@ -1,7 +1,10 @@
-// @lumi/shared/voices — catálogo de vozes de narração (presets profissionais).
-// Cada voz declara seu VENDOR; a API usa strategy pattern (1 estratégia por vendor,
-// sem fallback). ElevenLabs PREMADE funcionam no free; as vozes "library" da conta
-// (requiresPaid) só com plano pago — ligam via ELEVENLABS_LIBRARY_ENABLED.
+// @lumi/shared/voices — catálogo de vozes de narração.
+//
+// 5 vozes ElevenLabs PROFESSIONAL (PT-BR) da conta do operador + 3 vozes Gemini
+// TTS (variedade adicional). Strategy pattern na API: cada voz declara seu vendor
+// e ref; o router (catalog-provider.ts) sintetiza estritamente com aquele vendor
+// — SEM fallback cross-vendor (se a vendor falhar, a voz vira indisponível no
+// picker, em vez de tocar voz errada).
 
 export type VoiceVendor = 'elevenlabs' | 'gemini';
 
@@ -12,37 +15,27 @@ export interface VoicePresetDef {
   vendor: VoiceVendor;
   /** ElevenLabs: voice_id; Gemini: nome da voz prebuilt */
   ref: string;
-  /** ElevenLabs library/custom voices exigem plano pago (free → 402). */
-  requiresPaid?: boolean;
 }
 
-/** Vozes library do ElevenLabs (suas vozes salvas) só com upgrade. Flip ao pagar. */
-export const ELEVENLABS_LIBRARY_ENABLED = false;
-
-/** Voz padrão — uma voz ElevenLabs premade (real, funciona no free). */
-export const DEFAULT_VOICE_ID = 'el-bella';
+/** Voz default — narradora infantil em PT-BR. */
+export const DEFAULT_VOICE_ID = 'carla';
 
 export const VOICE_PRESETS: VoicePresetDef[] = [
-  // ElevenLabs PREMADE — vozes reais que funcionam no free (com timestamps p/ karaokê)
-  { id: 'el-bella', label: '🌟 Bella · brilhante e calorosa', vendor: 'elevenlabs', ref: 'hpp4J3VqNfWAUOO0d1Us' },
-  { id: 'el-sarah', label: '🤍 Sarah · suave e tranquila', vendor: 'elevenlabs', ref: 'EXAVITQu4vr4xnSDxMaL' },
-  { id: 'el-laura', label: '✨ Laura · animada', vendor: 'elevenlabs', ref: 'FGY2WhTYpPnrIDTdsKH5' },
-  { id: 'el-roger', label: '👴 Roger · voz grave', vendor: 'elevenlabs', ref: 'CwhRBWXzGAHq8TQ4Fs17' },
-  // Gemini TTS — variedade (também funcionam sem custo de assinatura)
+  // ElevenLabs Professional — vozes da conta do operador (PT-BR, professional cloning).
+  { id: 'carla', label: '📖 Carla · narradora infantil', vendor: 'elevenlabs', ref: 'oJebhZNaPllxk6W0LSBA' },
+  { id: 'luna', label: '🌙 Luna · suave e calma', vendor: 'elevenlabs', ref: 'jotBQRDYDizrWQAbv9VO' },
+  { id: 'graziella', label: '🧸 Graziella · narradora infantil', vendor: 'elevenlabs', ref: 'iTvRNZPNPS0EiSgOCQG0' },
+  { id: 'amanda', label: '🌷 Amanda · doce e calorosa', vendor: 'elevenlabs', ref: 'oi8rgjIfLgJRsQ6rbZh3' },
+  { id: 'yasmin', label: '🎵 Yasmin · suave e musical', vendor: 'elevenlabs', ref: 'lWq4KDY8znfkV0DrK8Vb' },
+  // Gemini TTS — variedade adicional (cota free 10/dia → algumas chamadas podem 429).
   { id: 'gem-sulafat', label: '🌙 Estrelinha · calorosa', vendor: 'gemini', ref: 'Sulafat' },
   { id: 'gem-leda', label: '🧚 Fada · jovem', vendor: 'gemini', ref: 'Leda' },
   { id: 'gem-charon', label: '📖 Narrador · clássico', vendor: 'gemini', ref: 'Charon' },
-  // ElevenLabs LIBRARY — suas vozes salvas (precisam de upgrade pago p/ tocar)
-  { id: 'carla', label: '📖 Carla · narradora infantil', vendor: 'elevenlabs', ref: 'oJebhZNaPllxk6W0LSBA', requiresPaid: true },
-  { id: 'graziella', label: '🧸 Graziella · narradora infantil', vendor: 'elevenlabs', ref: 'iTvRNZPNPS0EiSgOCQG0', requiresPaid: true },
-  { id: 'amanda', label: '🌷 Amanda · doce e calorosa', vendor: 'elevenlabs', ref: 'oi8rgjIfLgJRsQ6rbZh3', requiresPaid: true },
-  { id: 'yasmin', label: '🎵 Yasmin · suave e musical', vendor: 'elevenlabs', ref: 'lWq4KDY8znfkV0DrK8Vb', requiresPaid: true },
 ];
 
-/** Presets realmente disponíveis (oculta as library quando sem upgrade). */
-export const ACTIVE_VOICE_PRESETS: VoicePresetDef[] = VOICE_PRESETS.filter(
-  (v) => !v.requiresPaid || ELEVENLABS_LIBRARY_ENABLED,
-);
+/** Todas as vozes que podem ser oferecidas. (Mantido por compat com chamadas
+ *  existentes que filtram por requiresPaid — agora não há mais.) */
+export const ACTIVE_VOICE_PRESETS: VoicePresetDef[] = VOICE_PRESETS;
 
 export function findVoicePreset(id: string): VoicePresetDef | undefined {
   return VOICE_PRESETS.find((v) => v.id === id);

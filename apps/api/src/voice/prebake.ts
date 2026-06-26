@@ -55,7 +55,7 @@ async function runJob(storyId: string, job: Job): Promise<JobResult> {
     }
   }
   try {
-    const narration = await voiceProvider.synthesize(text, voiceId, { strict: true });
+    const narration = await voiceProvider.synthesize(text, voiceId);
     if (!narration.audioBase64) {
       return { pageId, voiceId, status: 'failed', reason: 'provider não retornou áudio' };
     }

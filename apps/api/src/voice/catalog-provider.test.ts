@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DEFAULT_VOICE_ID, findVoicePreset } from '@lumi/shared';
+import { findVoicePreset } from '@lumi/shared';
 
 import { createVoiceRouter, type VoiceStrategy } from './catalog-provider';
 import type { Narration } from './types';
@@ -11,7 +11,7 @@ const narration = (tag: string): Narration => ({
   durationMs: 0,
 });
 
-/** Estratégia espiã: registra os `ref` recebidos e ou responde ou falha (429). */
+/** Estratégia espiã: registra os `ref` recebidos e ou responde ou falha. */
 function spy(tag: string, behavior: 'ok' | 'fail') {
   const calls: string[] = [];
   const strategy: VoiceStrategy = {
@@ -24,11 +24,23 @@ function spy(tag: string, behavior: 'ok' | 'fail') {
   return { strategy, calls };
 }
 
-const EL_BELLA_REF = findVoicePreset(DEFAULT_VOICE_ID)!.ref; // ref de fallback do ElevenLabs
+const CARLA_REF = findVoicePreset('carla')!.ref; // ElevenLabs (id 'oJebhZNaPllxk6W0LSBA')
 const GEM_LEDA_REF = findVoicePreset('gem-leda')!.ref; // 'Leda'
 
-describe('createVoiceRouter — strategy + fallback cross-vendor', () => {
-  test('usa a vendor da voz escolhida quando ela funciona', async () => {
+describe('createVoiceRouter — strategy estrita (sem fallback cross-vendor)', () => {
+  test('voz ElevenLabs roteia direto pra ElevenLabs', async () => {
+    const gem = spy('gemini', 'ok');
+    const el = spy('eleven', 'ok');
+    const router = createVoiceRouter({ gemini: gem.strategy, elevenlabs: el.strategy });
+
+    const out = await router.synthesize('era uma vez', 'carla');
+
+    expect(out.audioBase64).toBe('eleven');
+    expect(el.calls).toEqual([CARLA_REF]);
+    expect(gem.calls).toEqual([]);
+  });
+
+  test('voz Gemini roteia direto pra Gemini', async () => {
     const gem = spy('gemini', 'ok');
     const el = spy('eleven', 'ok');
     const router = createVoiceRouter({ gemini: gem.strategy, elevenlabs: el.strategy });
@@ -36,51 +48,24 @@ describe('createVoiceRouter — strategy + fallback cross-vendor', () => {
     const out = await router.synthesize('era uma vez', 'gem-leda');
 
     expect(out.audioBase64).toBe('gemini');
-    expect(gem.calls).toEqual([GEM_LEDA_REF]); // chamou o Gemini com a ref do preset
-    expect(el.calls).toEqual([]); // não precisou do fallback
+    expect(gem.calls).toEqual([GEM_LEDA_REF]);
+    expect(el.calls).toEqual([]);
   });
 
-  test('faz fallback pro ElevenLabs quando o Gemini falha (429)', async () => {
+  test('vendor da voz falha → propaga erro SEM fallback cross-vendor', async () => {
     const gem = spy('gemini', 'fail');
     const el = spy('eleven', 'ok');
     const router = createVoiceRouter({ gemini: gem.strategy, elevenlabs: el.strategy });
-
-    const out = await router.synthesize('era uma vez', 'gem-leda');
-
-    expect(out.audioBase64).toBe('eleven'); // narração não ficou muda
-    expect(gem.calls).toEqual([GEM_LEDA_REF]); // tentou o Gemini primeiro
-    expect(el.calls).toEqual([EL_BELLA_REF]); // caiu pro ElevenLabs com voz padrão
-  });
-
-  test('voz ElevenLabs roteia direto pro ElevenLabs', async () => {
-    const gem = spy('gemini', 'ok');
-    const el = spy('eleven', 'ok');
-    const router = createVoiceRouter({ gemini: gem.strategy, elevenlabs: el.strategy });
-
-    const out = await router.synthesize('era uma vez', 'el-bella');
-
-    expect(out.audioBase64).toBe('eleven');
-    expect(el.calls).toEqual([EL_BELLA_REF]);
-    expect(gem.calls).toEqual([]);
-  });
-
-  test('sem fallback disponível, propaga o erro', async () => {
-    const gem = spy('gemini', 'fail');
-    const router = createVoiceRouter({ gemini: gem.strategy });
 
     await expect(router.synthesize('era uma vez', 'gem-leda')).rejects.toThrow(/indisponível/);
+
+    expect(gem.calls).toEqual([GEM_LEDA_REF]);
+    expect(el.calls).toEqual([]); // crítico: NÃO caiu na ElevenLabs
   });
 
-  test('strict: não cai em outra vendor mesmo se a do preset falhar', async () => {
-    const gem = spy('gemini', 'fail');
-    const el = spy('eleven', 'ok');
-    const router = createVoiceRouter({ gemini: gem.strategy, elevenlabs: el.strategy });
+  test('vendor não registrada → erro claro', async () => {
+    const router = createVoiceRouter({ gemini: spy('gemini', 'ok').strategy });
 
-    await expect(
-      router.synthesize('era uma vez', 'gem-leda', { strict: true }),
-    ).rejects.toThrow(/indisponível/);
-
-    expect(gem.calls).toEqual([GEM_LEDA_REF]); // tentou Gemini
-    expect(el.calls).toEqual([]); // mas não fez fallback pra ElevenLabs
+    await expect(router.synthesize('era uma vez', 'carla')).rejects.toThrow(/elevenlabs.*não disponível/);
   });
 });

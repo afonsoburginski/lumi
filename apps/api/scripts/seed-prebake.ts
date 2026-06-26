@@ -125,7 +125,6 @@ async function synthOne(story: SeedStory, page: SeedPage, voiceId: string) {
     voiceId,
     storyId: story.storyId,
     pageId: page.pageId,
-    strict: true,
   };
   const res = await fetch(`${API_URL}/voice/synthesize`, {
     method: 'POST',

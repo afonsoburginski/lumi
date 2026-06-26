@@ -25,8 +25,6 @@ const synthSchema = z.object({
   /** Quando informados, a narração é salva em `stories/<id>/audio/<voiceId>/<pageId>`. */
   storyId: z.string().optional(),
   pageId: z.string().optional(),
-  /** Pré-bake: desliga o fallback cross-vendor (não grava voz errada na key pedida). */
-  strict: z.boolean().default(false),
 });
 
 const extFor = (mime?: string) => (mime?.includes('wav') ? 'wav' : 'mp3');
@@ -70,7 +68,7 @@ function resolveKeys(input: {
 voiceRoutes.post('/synthesize', async (c) => {
   const parsed = synthSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'validation', message: 'Texto inválido' }, 400);
-  const { text, voiceId, storyId, pageId, strict } = parsed.data;
+  const { text, voiceId, storyId, pageId } = parsed.data;
 
   if (storageEnabled) {
     // 1) cache hit pelo sidecar (sabemos a extensão do áudio salvo)
@@ -89,7 +87,7 @@ voiceRoutes.post('/synthesize', async (c) => {
     }
 
     // 2) cache miss → sintetiza e sobe
-    const narration = await voiceProvider.synthesize(text, voiceId, { strict });
+    const narration = await voiceProvider.synthesize(text, voiceId);
     if (!narration.audioBase64) {
       // provider mock (sem áudio): devolve só os timings
       return c.json({ wordTimings: narration.wordTimings, durationMs: narration.durationMs });
@@ -113,7 +111,7 @@ voiceRoutes.post('/synthesize', async (c) => {
   }
 
   // Sem storage: comportamento original (base64 inline).
-  const narration = await voiceProvider.synthesize(text, voiceId, { strict });
+  const narration = await voiceProvider.synthesize(text, voiceId);
   return c.json(narration);
 });
 

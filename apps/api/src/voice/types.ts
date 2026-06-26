@@ -13,15 +13,10 @@ export interface Narration {
   durationMs: number;
 }
 
-/** Opções de síntese — `strict` desliga o fallback cross-vendor (usado no pré-bake). */
-export interface SynthesizeOptions {
-  strict?: boolean;
-}
-
 export interface VoiceProvider {
   readonly name: string;
   listPresets(): VoicePreset[];
-  synthesize(text: string, voiceId: string, opts?: SynthesizeOptions): Promise<Narration>;
+  synthesize(text: string, voiceId: string): Promise<Narration>;
   /** Clonagem: recebe amostras (base64) e retorna o id da voz no provider. */
   cloneVoice(label: string, samplesBase64: string[]): Promise<{ voiceId: string }>;
 }

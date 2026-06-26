@@ -17,20 +17,59 @@ import type { WordTiming } from '@/types/domain';
  * permitindo trocar voz offline depois da 1ª abertura.
  */
 
-interface ManifestAudio {
+export interface ManifestAudio {
   pageId: string;
   audioUrl: string;
   timingsUrl: string;
-  ext: string;
+  ext: 'mp3' | 'wav';
 }
 
-interface StoryManifest {
+export interface StoryManifest {
   storyId: string;
   version: number;
   cover: { url: string } | null;
   pages: { pageId: string; imageUrl: string }[];
   audioByVoice: Record<string, ManifestAudio[]>;
   voices: VoicePresetDef[];
+}
+
+/**
+ * Cache de manifest por storyId — evita refazer o request a cada lookup do
+ * `narration.ts`. O TTL é o ciclo de vida da sessão: ao reabrir o app, fresh fetch.
+ */
+const manifestCache = new Map<string, Promise<StoryManifest | null>>();
+
+async function fetchManifestRaw(storyId: string): Promise<StoryManifest | null> {
+  try {
+    return await apiFetch<StoryManifest>(`/stories/${storyId}/manifest`);
+  } catch (err) {
+    console.warn('[manifest] indisponível:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** Manifest da história (cacheado em memória). null se a API estiver fora. */
+export function getStoryManifest(storyId: string): Promise<StoryManifest | null> {
+  const cached = manifestCache.get(storyId);
+  if (cached) return cached;
+  const promise = fetchManifestRaw(storyId);
+  manifestCache.set(storyId, promise);
+  return promise;
+}
+
+/** Force-refresh do manifest (após pré-bake, p.ex.). */
+export function invalidateStoryManifest(storyId: string): void {
+  manifestCache.delete(storyId);
+}
+
+/** Acha a entrada do manifest pra (voiceId, pageId). null se ainda não pré-bakeado. */
+export async function findManifestAudio(
+  storyId: string,
+  pageId: string,
+  voiceId: string,
+): Promise<ManifestAudio | null> {
+  const manifest = await getStoryManifest(storyId);
+  return manifest?.audioByVoice[voiceId]?.find((a) => a.pageId === pageId) ?? null;
 }
 
 const POOL_SIZE = 3;
@@ -51,6 +90,23 @@ export function localAudioPath(
 
 export function localTimingsPath(storyId: string, pageId: string, voiceId: string): string {
   return `${storyDir(storyId)}/audio/${voiceId}/${pageId}.json`;
+}
+
+/** Cache local de previews de voz (profile screen). Reutilizado entre sessões. */
+export function localPreviewPath(voiceId: string, ext: string): string {
+  const root = FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? '';
+  return `${root}lumi/previews/${voiceId}.${ext}`;
+}
+
+export async function findLocalPreview(
+  voiceId: string,
+): Promise<{ uri: string; ext: 'mp3' | 'wav' } | null> {
+  for (const ext of ['mp3', 'wav'] as const) {
+    const uri = localPreviewPath(voiceId, ext);
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists && (info.size ?? 0) > 0) return { uri, ext };
+  }
+  return null;
 }
 
 /** Encontra o arquivo local pra (voiceId, pageId) testando mp3/wav. null se não houver. */
@@ -122,6 +178,9 @@ async function runPool<T>(items: T[], size: number, work: (item: T) => Promise<v
 export interface PrefetchResult {
   downloaded: number;
   skipped: number;
+  /** Vozes que aparecem no manifest (já pré-bakeadas no R2). O picker do
+   *  livrinho deve filtrar pra mostrar só essas. */
+  availableVoiceIds: string[];
 }
 
 /**
@@ -129,14 +188,10 @@ export interface PrefetchResult {
  * sem `await` se não precisar esperar.
  */
 export async function prefetchStoryAudios(storyId: string): Promise<PrefetchResult> {
-  let manifest: StoryManifest;
-  try {
-    manifest = await apiFetch<StoryManifest>(`/stories/${storyId}/manifest`);
-  } catch (err) {
-    console.warn('[prefetch] manifest indisponível:', err instanceof Error ? err.message : err);
-    return { downloaded: 0, skipped: 0 };
-  }
+  const manifest = await getStoryManifest(storyId);
+  if (!manifest) return { downloaded: 0, skipped: 0, availableVoiceIds: [] };
 
+  const availableVoiceIds = Object.keys(manifest.audioByVoice);
   const jobs: { url: string; target: string }[] = [];
   for (const [voiceId, items] of Object.entries(manifest.audioByVoice)) {
     for (const item of items) {
@@ -152,5 +207,5 @@ export async function prefetchStoryAudios(storyId: string): Promise<PrefetchResu
     if (did) downloaded++;
     else skipped++;
   });
-  return { downloaded, skipped };
+  return { downloaded, skipped, availableVoiceIds };
 }

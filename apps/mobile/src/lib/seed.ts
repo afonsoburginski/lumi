@@ -70,20 +70,9 @@ const CATARINA_PAGES: { text: string; art: number }[] = [
  * recortadas do spread (metade esquerda) + texto fiel do PDF. Convive com a seed
  * antiga (`catarina`) — não substitui.
  */
-// Narração pré-renderizada (voz el-bella) empacotada → toca OFFLINE, sem API.
-const COVER_AUDIO2 = require('../../assets/stories/catarina-sonhar/audio/cover.mp3');
-const AUDIO2 = [
-  require('../../assets/stories/catarina-sonhar/audio/page-1.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-2.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-3.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-4.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-5.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-6.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-7.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-8.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-9.mp3'),
-  require('../../assets/stories/catarina-sonhar/audio/page-10.mp3'),
-];
+// Narração via R2: pré-bakeada pelo servidor (publicação) e baixada pelo
+// `prefetchStoryAudios` na 1ª abertura. Sem bundle local (era el-bella, voz
+// que saiu do catálogo) — depois da 1ª abertura toca 100% offline mesmo.
 
 const ART2 = {
   cover: require('../../assets/stories/catarina-sonhar/cover.jpg'),
@@ -182,14 +171,12 @@ export function buildSeedStories(): Story[] {
       {
         id: 'catarina-sonhar-cover',
         imageUri: assetUri(ART2.cover),
-        audioUri: assetUri(COVER_AUDIO2),
         text: 'O Show de Sonhar da Catarina. De Afonso Burginski.',
         wordTimings: synthesize('O Show de Sonhar da Catarina. De Afonso Burginski.').wordTimings,
       },
       ...CATARINA_SONHAR_PAGES.map((p, i) => ({
         id: `catarina-sonhar-pg-${i + 1}`,
         imageUri: assetUri(p.art),
-        audioUri: assetUri(AUDIO2[i]),
         text: p.text,
         wordTimings: synthesize(p.text).wordTimings,
       })),

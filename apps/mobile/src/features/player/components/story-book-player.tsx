@@ -48,16 +48,34 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
   const { currentPage, turn, goNext, goPrev, flip, dir } = useBookPager(pages.length, initialPage);
   const { visible, show, toggle } = useAutoHideChrome();
 
-  const voices = useVoice(useShallow((s) => s.allVoices()));
+  // Picker mostra SÓ as vozes já pré-bakeadas no R2 dessa história (filtragem
+  // vinda do manifest). Antes do 1º manifest, mostra o catálogo inteiro.
+  const voices = useVoice(useShallow((s) => s.voicesForStory(story.id)));
   const selectedVoiceId = useVoice((s) => s.selectedVoiceId);
   const selectVoice = useVoice((s) => s.select);
+  const setAvailableVoices = useVoice((s) => s.setAvailableVoices);
   const activeVoice = voices.find((v) => v.id === selectedVoiceId) ?? voices[0];
 
   // Eager prefetch: ao abrir o livrinho, baixa TODAS as vozes pré-bakeadas
-  // (manifest /stories/:id/manifest → R2). Idempotente — pula o que já está local.
+  // (manifest /stories/:id/manifest → R2). Idempotente — pula o que já está
+  // local. Também registra quais vozes estão disponíveis → filtra o picker.
   useEffect(() => {
-    prefetchStoryAudios(story.id).catch(() => {});
-  }, [story.id]);
+    prefetchStoryAudios(story.id)
+      .then((r) => {
+        if (r.availableVoiceIds.length > 0) {
+          setAvailableVoices(story.id, r.availableVoiceIds);
+        }
+      })
+      .catch(() => {});
+  }, [story.id, setAvailableVoices]);
+
+  // Se a voz selecionada foi removida do picker (não está no R2 ainda), pula
+  // pra primeira disponível em vez de tocar voz errada ou ficar muda.
+  useEffect(() => {
+    if (voices.length > 0 && !voices.some((v) => v.id === selectedVoiceId)) {
+      selectVoice(voices[0].id);
+    }
+  }, [voices, selectedVoiceId, selectVoice]);
 
   // Áudio empacotado (offline) só serve pra voz padrão. Pra outras vozes, o
   // `useNarration` resolve via cache local (prefetch) ou síntese sob demanda.
