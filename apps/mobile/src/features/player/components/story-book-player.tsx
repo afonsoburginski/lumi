@@ -203,50 +203,9 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
 
   return (
     <View style={[styles.root, { backgroundColor: BACKDROP }]}>
-      {/* ---- Barra superior (estilo Gemini) ---- */}
-      <View style={[styles.bar, { height: barH, paddingTop: insets.top }]}>
-        <View style={styles.barSide}>
-          <HoldToClose onClose={onClose} />
-          <RNText style={styles.title} numberOfLines={1}>
-            {story.title}
-          </RNText>
-        </View>
-
-        <View style={styles.pager}>
-          <Pressable onPress={goPrev} hitSlop={8} accessibilityLabel="Página anterior">
-            <Icon name={ChevronLeft} color={currentPage > 0 ? BAR_INK : BAR_MUTED} size={20} />
-          </Pressable>
-          <RNText style={styles.pagerText}>
-            {currentPage + 1}/{pages.length}
-          </RNText>
-          <Pressable onPress={goNext} hitSlop={8} accessibilityLabel="Próxima página">
-            <Icon
-              name={ChevronRight}
-              color={currentPage < pages.length - 1 ? BAR_INK : BAR_MUTED}
-              size={20}
-            />
-          </Pressable>
-        </View>
-
-        <View style={[styles.barSide, styles.barRight]}>
-          <Pressable onPress={cycleVoice} style={styles.voiceBtn} accessibilityLabel="Trocar voz">
-            <Icon name={Volume2} color={BAR_INK} size={16} />
-            {activeVoice ? <RNText style={styles.voiceTxt}>{activeVoice.label}</RNText> : null}
-          </Pressable>
-          <Pressable
-            onPress={togglePlay}
-            style={styles.playBtn}
-            accessibilityLabel={isPlaying ? 'Pausar narração' : 'Ouvir narração'}
-          >
-            <Icon name={isPlaying ? Pause : Play} color="#FFFFFF" size={18} />
-          </Pressable>
-        </View>
-      </View>
-
-      {/* ---- Livro ---- */}
+      {/* ---- Livro (ocupa a tela toda; a barra fica por cima e some sozinha) ---- */}
       <View style={styles.stage}>
         <Pressable onPress={onTapPage} style={[styles.book, { width: bookW, height: bookH }]}>
-          {/* camada de baixo: spread de destino */}
           <View style={styles.leftPage}>
             <Illustration page={pages[destIndex]} />
           </View>
@@ -254,14 +213,12 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
             <TextPage page={pages[destIndex]} author={author} />
           </View>
 
-          {/* cobertura da ilustração de origem (cross-fade) durante a virada */}
           {turn ? (
             <Reanimated.View style={[styles.leftPage, leftCoverStyle]}>
               <Illustration page={pages[srcIndex]} />
             </Reanimated.View>
           ) : null}
 
-          {/* folha de texto de origem girando na lombada */}
           {turn ? (
             <Reanimated.View style={[styles.rightPage, styles.leaf, { width: halfW }, leafStyle]}>
               <TextPage page={pages[srcIndex]} author={author} />
@@ -269,10 +226,53 @@ export default function StoryBookPlayer({ story, initialPage = 0, onClose }: Pro
             </Reanimated.View>
           ) : null}
 
-          {/* lombada central */}
           <View style={[styles.spine, { left: halfW - 1 }]} pointerEvents="none" />
         </Pressable>
       </View>
+
+      {/* ---- Barra superior (estilo Gemini, auto-hide por cima) ---- */}
+      {chromeVisible ? (
+        <Animated.View
+          style={[styles.bar, { height: barH, paddingTop: insets.top, opacity: chromeOpacity }]}
+        >
+          <View style={styles.barSide}>
+            <HoldToClose onClose={onClose} />
+            <RNText style={styles.title} numberOfLines={1}>
+              {story.title}
+            </RNText>
+          </View>
+
+          <View style={styles.pager}>
+            <Pressable onPress={goPrev} hitSlop={8} accessibilityLabel="Página anterior">
+              <Icon name={ChevronLeft} color={currentPage > 0 ? BAR_INK : BAR_MUTED} size={20} />
+            </Pressable>
+            <RNText style={styles.pagerText}>
+              {currentPage + 1}/{pages.length}
+            </RNText>
+            <Pressable onPress={goNext} hitSlop={8} accessibilityLabel="Próxima página">
+              <Icon
+                name={ChevronRight}
+                color={currentPage < pages.length - 1 ? BAR_INK : BAR_MUTED}
+                size={20}
+              />
+            </Pressable>
+          </View>
+
+          <View style={[styles.barSide, styles.barRight]}>
+            <Pressable onPress={cycleVoice} style={styles.voiceBtn} accessibilityLabel="Trocar voz">
+              <Icon name={Volume2} color={BAR_INK} size={16} />
+              {activeVoice ? <RNText style={styles.voiceTxt}>{activeVoice.label}</RNText> : null}
+            </Pressable>
+            <Pressable
+              onPress={togglePlay}
+              style={styles.playBtn}
+              accessibilityLabel={isPlaying ? 'Pausar narração' : 'Ouvir narração'}
+            >
+              <Icon name={isPlaying ? Pause : Play} color="#FFFFFF" size={18} />
+            </Pressable>
+          </View>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -324,12 +324,17 @@ function PageCurl() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
-  // barra superior
+  // barra superior (overlay absoluto, auto-hide)
   bar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: BAR,
+    backgroundColor: 'rgba(34,37,44,0.94)',
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
