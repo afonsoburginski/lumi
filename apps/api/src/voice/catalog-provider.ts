@@ -8,25 +8,56 @@ export interface VoiceStrategy {
 }
 
 /**
+ * Ref padrão por vendor para FALLBACK. Quando a vendor da voz escolhida falha
+ * (ex.: Gemini TTS estoura a cota free de 10/dia → 429), roteamos pra outra
+ * vendor disponível com uma voz profissional dela. ElevenLabs → voice_id premade
+ * (funciona no free); Gemini → voz prebuilt amistosa.
+ */
+const FALLBACK_REF: Record<VoiceVendor, string> = {
+  elevenlabs: findVoicePreset(DEFAULT_VOICE_ID)?.ref ?? 'hpp4J3VqNfWAUOO0d1Us',
+  gemini: 'Achird',
+};
+
+/**
  * Roteador de voz — STRATEGY PATTERN: cada preset (ver @lumi/shared/voices)
  * declara seu vendor; a síntese vai para a estratégia daquele vendor usando o
- * `ref` correto (voice_id do ElevenLabs OU nome da voz Gemini). SEM fallback —
- * se a estratégia do vendor não estiver registrada, erro explícito.
+ * `ref` correto (voice_id do ElevenLabs OU nome da voz Gemini).
+ *
+ * FALLBACK cross-vendor (resiliência — NÃO "voz burra"): se a vendor da voz
+ * escolhida falhar (cota/erro), tentamos as demais vendors registradas com a voz
+ * padrão delas. A narração NUNCA fica muda pra criança e ambos os lados são voz
+ * profissional real (≠ do antigo fallback robótico de expo-speech).
  */
 export function createVoiceRouter(
   strategies: Partial<Record<VoiceVendor, VoiceStrategy>>,
 ): VoiceProvider {
+  const available = Object.keys(strategies) as VoiceVendor[];
+
   return {
-    name: `router(${Object.keys(strategies).join('+')})`,
+    name: `router(${available.join('+')})`,
     listPresets: () => ACTIVE_VOICE_PRESETS.map(({ id, label }) => ({ id, label })),
 
-    synthesize(text, voiceId) {
+    async synthesize(text, voiceId): Promise<Narration> {
       const preset = findVoicePreset(voiceId) ?? findVoicePreset(DEFAULT_VOICE_ID)!;
-      const strategy = strategies[preset.vendor];
-      if (!strategy) {
-        throw new Error(`Sem estratégia de voz para o vendor "${preset.vendor}" (voiceId=${voiceId})`);
+      // a vendor do preset primeiro; as demais como fallback (na ordem registrada)
+      const order: VoiceVendor[] = [preset.vendor, ...available.filter((v) => v !== preset.vendor)];
+
+      let lastErr: unknown;
+      for (const vendor of order) {
+        const strategy = strategies[vendor];
+        if (!strategy) continue;
+        const ref = vendor === preset.vendor ? preset.ref : FALLBACK_REF[vendor];
+        try {
+          return await strategy.synthesize(text, ref);
+        } catch (err) {
+          lastErr = err;
+          console.warn(
+            `[voice] vendor "${vendor}" falhou (voiceId=${voiceId}) — tentando fallback…`,
+            err instanceof Error ? err.message : err,
+          );
+        }
       }
-      return strategy.synthesize(text, preset.ref);
+      throw lastErr ?? new Error(`Nenhuma estratégia de voz disponível (voiceId=${voiceId})`);
     },
 
     async cloneVoice(): Promise<{ voiceId: string }> {

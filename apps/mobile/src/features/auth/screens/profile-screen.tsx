@@ -1,21 +1,24 @@
 import React from 'react';
-import { View as RNView, StyleSheet } from 'react-native';
+import { Pressable, View as RNView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Check, Mic, Wifi, WifiOff } from 'lucide-react-native';
+import { Check, Mic, Play, Wifi, WifiOff } from 'lucide-react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import { Screen } from '@/components/shared/screen';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Card, CardContent } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
+import { Spinner } from '@/components/ui/spinner';
 import { Separator } from '@/components/ui/separator';
 import { SectionTitle } from '@/components/shared/section-title';
 import { useAuth } from '@/features/auth/store/auth-store';
 import { useVoice } from '@/features/narration-voice/store/voice-store';
+import { useVoicePreview } from '@/features/narration-voice/hooks/use-voice-preview';
 import { useConnectivity } from '@/lib/net/connectivity';
 import { useSync } from '@/lib/services/sync';
-import { spacing } from '@/theme/tokens';
+import { useColor } from '@/hooks/useColor';
+import { radius, spacing } from '@/theme/tokens';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -25,6 +28,11 @@ export default function ProfileScreen() {
   const voices = useVoice(useShallow((s) => s.allVoices()));
   const selectedVoiceId = useVoice((s) => s.selectedVoiceId);
   const selectVoice = useVoice((s) => s.select);
+  const { preview, loadingId, errorId } = useVoicePreview();
+
+  const tint = useColor('primary');
+  const activeBg = useColor('secondary');
+  const danger = useColor('red');
 
   const isOnline = useConnectivity((s) => s.isOnline);
   const toggleOnline = useConnectivity((s) => s.toggle);
@@ -68,28 +76,40 @@ export default function ProfileScreen() {
 
       <Separator style={{ marginVertical: spacing.lg }} />
 
-      {/* Vozes de narração */}
-      <SectionTitle icon={Mic}>Vozes de narração</SectionTitle>
-      {voices.map((v) => (
-        <Card key={v.id} style={{ marginBottom: spacing.sm }}>
-          <CardContent style={styles.voiceRow}>
-            <RNView style={{ flex: 1 }}>
-              <Text variant="body">{v.label}</Text>
-              <Text variant="caption">
-                {v.vendor === 'elevenlabs' ? 'Voz profissional' : 'Voz Gemini'}
-              </Text>
-            </RNView>
-            <Button
-              size="sm"
-              variant={selectedVoiceId === v.id ? 'default' : 'secondary'}
-              icon={selectedVoiceId === v.id ? Check : undefined}
+      {/* Voz da narração — lista compacta: toque pra escolher, ▶ pra ouvir */}
+      <SectionTitle icon={Mic}>Voz da narração</SectionTitle>
+      <RNView style={styles.voiceList}>
+        {voices.map((v) => {
+          const active = selectedVoiceId === v.id;
+          const failed = errorId === v.id;
+          return (
+            <Pressable
+              key={v.id}
               onPress={() => selectVoice(v.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={[styles.voiceItem, active && { backgroundColor: activeBg }]}
             >
-              {selectedVoiceId === v.id ? 'Ativa' : 'Usar'}
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+              <Pressable
+                onPress={() => preview(v.id)}
+                hitSlop={10}
+                accessibilityLabel={`Ouvir ${v.label}`}
+                style={[styles.previewBtn, { borderColor: failed ? danger : tint }]}
+              >
+                {loadingId === v.id ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Icon name={Play} size={14} color={failed ? danger : tint} />
+                )}
+              </Pressable>
+              <Text variant="body" numberOfLines={1} style={styles.voiceName}>
+                {v.label}
+              </Text>
+              {active ? <Icon name={Check} size={18} color={tint} /> : null}
+            </Pressable>
+          );
+        })}
+      </RNView>
 
       <Separator style={{ marginVertical: spacing.lg }} />
 
@@ -113,5 +133,22 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center' },
-  voiceRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
+  voiceList: { gap: 2 },
+  voiceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 9,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+  },
+  previewBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceName: { flex: 1 },
 });

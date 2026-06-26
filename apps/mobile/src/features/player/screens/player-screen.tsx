@@ -9,19 +9,60 @@ import { StoryLoader } from '@/components/shared/story-loader';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { useStory } from '@/lib/hooks/use-story';
+import { useVoice } from '@/features/narration-voice/store/voice-store';
+import { fetchNarration } from '@/features/narration-voice/services/narration';
+import { config } from '@/config';
 import { mockStory } from '@/lib/mock';
+
+const LOADER_MIN_MS = 700; // transição nunca pisca rápido demais
+const LOADER_MAX_MS = 6000; // criança não espera: abre mesmo se a voz demorar
 
 export default function PlayerRoute() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const story = useStory(id) ?? (id === mockStory.id ? mockStory : undefined);
+  const selectedVoiceId = useVoice((s) => s.selectedVoiceId);
 
-  // Transição mágica ao entrar (cobre também a rotação no formato landscape).
+  // O loader existe PRA ISSO: pré-carregar a voz da 1ª página enquanto a
+  // transição roda, então quando o player abre a narração já começa na hora.
+  // Mesma cacheKey do useNarration → o player encontra o arquivo pronto no cache.
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), 900);
-    return () => clearTimeout(t);
-  }, []);
+    if (!story) return;
+    let cancelled = false;
+    let minDone = false;
+    let settled = false;
+    const finish = () => {
+      if (!cancelled && minDone && settled) setReady(true);
+    };
+    const minT = setTimeout(() => {
+      minDone = true;
+      finish();
+    }, LOADER_MIN_MS);
+    const maxT = setTimeout(() => {
+      settled = true;
+      finish();
+    }, LOADER_MAX_MS);
+
+    const page1 = story.pages[0];
+    if (page1 && !config.useMocks) {
+      fetchNarration(page1.text, selectedVoiceId, `lazy-${page1.id}-${selectedVoiceId}`)
+        .catch(() => {})
+        .finally(() => {
+          settled = true;
+          finish();
+        });
+    } else {
+      settled = true; // offline/mock: nada a pré-carregar
+    }
+
+    return () => {
+      cancelled = true;
+      clearTimeout(minT);
+      clearTimeout(maxT);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [story?.id, selectedVoiceId]);
 
   // Trava a orientação conforme o formato da história enquanto o player está em
   // foco; ao sair, volta o app para retrato (baseline do _layout raiz).
@@ -83,7 +124,7 @@ export default function PlayerRoute() {
     );
   }
 
-  // Transição de entrada (e, na Onda 2, cobre o pré-carregamento do áudio).
+  // Loader até a voz da 1ª página estar pré-carregada (ou estourar o tempo máx.).
   if (!ready) return <StoryLoader title={story.title} />;
 
   return storyFormat(story) === 'landscape' ? (

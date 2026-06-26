@@ -8,13 +8,21 @@ import type { StoryPage, WordTiming } from '@/types/domain';
 
 /**
  * Controller de narração — SÓ voz profissional (ElevenLabs/Gemini via API).
- * Toca o áudio pré-gerado da página (`audioUri`) ou busca sob demanda quando há
- * backend; cacheia. Sem expo-speech (nada de voz robótica). Karaokê proporcional
- * à duração real do áudio + "respiro" entre páginas antes do auto-avanço.
+ *
+ * INTENÇÃO DE TOCAR (`wantPlaying`) desacoplada do carregamento assíncrono do
+ * áudio: o usuário pode tocar/pausar (ou trocar a voz) ANTES do arquivo existir;
+ * quando o áudio carrega, respeitamos a intenção atual. Isso elimina os bugs de
+ * "troquei o narrador e cliquei em play e não rolou" e "trocou de página sozinho
+ * e tive que clicar no play".
+ *
+ * Player ÚNICO controlado explicitamente: a cada página/voz, `player.replace(uri)`
+ * (o expo-audio NÃO troca a fonte sozinho ao mudar o argumento). Tokens: sintetiza
+ * só a página aberta (lazy) e cacheia por página+voz — reler não re-sintetiza.
  */
 
-const MS_PER_WORD = 380; // estimativa só p/ o scrubber antes do áudio carregar
-const PAGE_PAUSE_MS = 1200;
+const MS_PER_WORD = 380; // estimativa do scrubber antes do áudio carregar
+const PAGE_PAUSE_MS = 1100; // respiro entre páginas antes do auto-avanço
+const END_EPS = 0.25; // s — margem p/ considerar "terminou"
 
 function splitWords(text: string): string[] {
   return text.split(/\s+/).filter(Boolean);
@@ -48,18 +56,26 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
 
   const [lazyUri, setLazyUri] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const [wantPlaying, setWantPlaying] = useState(autoPlay);
+
   const effectiveUri = page.audioUri ?? lazyUri;
   const shouldLazy = !page.audioUri && !config.useMocks;
 
-  const player = useAudioPlayer(effectiveUri ? { uri: effectiveUri } : null);
+  // player único; trocamos a fonte por replace() (controle explícito)
+  const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
 
   const finishedRef = useRef(false);
+  const loadedUriRef = useRef<string | null>(null);
+  const wantPlayingRef = useRef(wantPlaying);
   const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onFinishedRef = useRef(onFinished);
   useEffect(() => {
     onFinishedRef.current = onFinished;
   });
+  useEffect(() => {
+    wantPlayingRef.current = wantPlaying;
+  }, [wantPlaying]);
 
   const clearPauseTimer = () => {
     if (pauseTimer.current) clearTimeout(pauseTimer.current);
@@ -73,16 +89,22 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
     pauseTimer.current = setTimeout(() => onFinishedRef.current?.(), PAGE_PAUSE_MS);
   }, []);
 
-  // Reset + busca da narração ao trocar de página (ou de voz).
+  // Troca de página OU de voz → re-sintetiza (lazy + cache) e zera o estado.
+  // Voltamos a "querer tocar" (autoPlay): nova página/voz narra sozinha.
   useEffect(() => {
-    finishedRef.current = false;
-    clearPauseTimer();
-    setLazyUri(null);
-
     let cancelled = false;
-    if (page.audioUri) {
-      setPreparing(false);
-    } else if (shouldLazy) {
+    finishedRef.current = false;
+    loadedUriRef.current = null;
+    clearPauseTimer();
+    try {
+      player.pause(); // corta o áudio anterior na hora
+    } catch {
+      /* ignore */
+    }
+    setLazyUri(null);
+    setWantPlaying(autoPlay);
+
+    if (!page.audioUri && shouldLazy) {
       setPreparing(true);
       fetchNarration(page.text, voiceId, `lazy-${page.id}-${voiceId}`)
         .then((r) => {
@@ -104,19 +126,30 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id, voiceId]);
 
-  // Autoplay quando o áudio carrega.
+  // Carrega a fonte quando o áudio fica pronto; toca SE a intenção atual é tocar.
   useEffect(() => {
-    if (autoPlay && status.isLoaded && !status.playing && (status.currentTime ?? 0) === 0) {
-      player.play();
+    if (!effectiveUri || loadedUriRef.current === effectiveUri) return;
+    loadedUriRef.current = effectiveUri;
+    finishedRef.current = false;
+    try {
+      player.replace({ uri: effectiveUri });
+      player.seekTo(0);
+      if (wantPlayingRef.current) player.play();
+    } catch {
+      /* ignore */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status.isLoaded, effectiveUri]);
+  }, [effectiveUri]);
 
-  // Auto-avanço ao terminar.
+  // Auto-avanço ao terminar — robusto a `didJustFinish` stale (usa posição também).
   useEffect(() => {
-    if (status.didJustFinish) finishWithPause();
+    if (!loadedUriRef.current) return;
+    const dur = status.duration ?? 0;
+    const atEnd = dur > 0 && (status.currentTime ?? 0) >= dur - END_EPS;
+    const ended = status.didJustFinish || (status.isLoaded && !status.playing && atEnd);
+    if (ended) finishWithPause();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status.didJustFinish]);
+  }, [status.didJustFinish, status.playing, status.currentTime, status.duration, status.isLoaded]);
 
   // Pausa ao mandar o app pro background.
   useEffect(() => {
@@ -135,23 +168,39 @@ export function useNarration(page: StoryPage, voiceId: string, opts: NarrationOp
       : -1;
 
   const togglePlay = useCallback(() => {
-    if (preparing || !effectiveUri) return;
-    if (status.playing) player.pause();
-    else player.play();
+    setWantPlaying((want) => {
+      const next = !want;
+      try {
+        if (next) {
+          const dur = status.duration ?? 0;
+          if (dur > 0 && (status.currentTime ?? 0) >= dur - END_EPS) player.seekTo(0); // recomeça se terminou
+          finishedRef.current = false;
+          if (loadedUriRef.current) player.play(); // se ainda carregando, toca no load
+        } else {
+          player.pause();
+          clearPauseTimer();
+        }
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preparing, effectiveUri, status.playing]);
+  }, [status.currentTime, status.duration]);
 
   const seek = useCallback(
     (ms: number) => {
-      if (!effectiveUri) return;
+      if (!loadedUriRef.current) return;
       player.seekTo(Math.max(0, Math.min(ms, durationMs)) / 1000);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [effectiveUri, durationMs],
+    [durationMs],
   );
 
   return {
-    isPlaying: preparing || status.playing,
+    // mostra "tocando" pela intenção enquanto prepara (botão responsivo), e pelo
+    // status real depois de carregado.
+    isPlaying: status.playing || (wantPlaying && preparing),
     preparing,
     positionMs,
     durationMs,
